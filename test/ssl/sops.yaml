@@ -1,0 +1,32 @@
+openssl-ca-pub: |-
+  -----BEGIN CERTIFICATE-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END CERTIFICATE-----
+openssl-ca-priv: |-
+  -----BEGIN PRIVATE KEY-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END PRIVATE KEY-----
+openssl-pub: |-
+  -----BEGIN CERTIFICATE-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END CERTIFICATE-----
+openssl-priv: |-
+  -----BEGIN PRIVATE KEY-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END PRIVATE KEY-----
+nebula-ca-pub: |-
+  -----BEGIN NEBULA CERTIFICATE-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END NEBULA CERTIFICATE-----
+nebula-ca-priv: |-
+  -----BEGIN NEBULA ED25519 PRIVATE KEY-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END NEBULA ED25519 PRIVATE KEY-----
+nebula-pub: |-
+  -----BEGIN NEBULA CERTIFICATE-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END NEBULA CERTIFICATE-----
+nebula-priv: |-
+  -----BEGIN NEBULA X25519 PRIVATE KEY-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END NEBULA X25519 PRIVATE KEY-----

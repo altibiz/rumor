@@ -1,0 +1,74 @@
+#:schema ../../src/schema.json
+[[imports]]
+importer = "vault"
+arguments.path = "secret/ssl"
+arguments.allow_fail = true
+
+[[exports]]
+exporter = "vault"
+arguments.path = "secret/ssl"
+
+[[generations]]
+generator = "openssl-ca"
+
+[generations.arguments]
+name = "ca"
+public = "openssl-ca-pub"
+private = "openssl-ca-priv"
+
+[[generations]]
+generator = "openssl"
+
+[generations.arguments]
+ca_public = "openssl-ca-pub"
+ca_private = "openssl-ca-priv"
+serial = "openssl-srl"
+name = "cert"
+public = "openssl-pub"
+private = "openssl-priv"
+renew = true
+
+[[generations]]
+generator = "nebula-ca"
+
+[generations.arguments]
+name = "ca"
+public = "nebula-ca-pub"
+private = "nebula-ca-priv"
+
+[[generations]]
+generator = "nebula"
+
+[generations.arguments]
+ca_public = "nebula-ca-pub"
+ca_private = "nebula-ca-priv"
+name = "cert"
+ip = "10.8.0.1/24"
+public = "nebula-pub"
+private = "nebula-priv"
+renew = true
+
+[[generations]]
+generator = "age"
+
+[generations.arguments]
+public = "age.txt.pub"
+private = "age.txt"
+
+[[generations]]
+generator = "sops"
+
+[generations.arguments]
+age = "age.txt.pub"
+public = "sops.yaml.pub"
+private = "sops.yaml"
+
+[generations.arguments.secrets]
+openssl-ca-pub = "openssl-ca-pub"
+openssl-ca-priv = "openssl-ca-priv"
+openssl-pub = "openssl-pub"
+openssl-priv = "openssl-priv"
+nebula-ca-pub = "nebula-ca-pub"
+nebula-ca-priv = "nebula-ca-priv"
+nebula-pub = "nebula-pub"
+nebula-priv = "nebula-priv"

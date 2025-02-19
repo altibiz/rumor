@@ -1,0 +1,713 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "type": "object",
+  "title": "Rumor spec schema",
+  "required": ["imports", "generations", "exports"],
+  "properties": {
+    "imports": {
+      "type": "array",
+      "title": "Imports to run",
+      "items": {
+        "type": "object",
+        "title": "Import to run",
+        "required": ["importer"],
+        "properties": {
+          "importer": {
+            "type": "string",
+            "enum": ["vault", "copy"],
+            "title": "Type of importer"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "importer": {
+                  "const": "vault"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Vault importer arguments",
+                  "required": ["path"],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "title": "Path where to load generations from"
+                    },
+                    "allow_fail": {
+                      "type": "boolean",
+                      "title": "Allow failing to load generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "importer": {
+                  "const": "copy"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Copy importer arguments",
+                  "required": ["from", "to"],
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "title": "From where to copy the generation file"
+                    },
+                    "to": {
+                      "type": "string",
+                      "title": "Where to put the generation file"
+                    },
+                    "allow_fail": {
+                      "type": "boolean",
+                      "title": "Allow failing to load generations"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "generations": {
+      "type": "array",
+      "title": "Generations to run",
+      "items": {
+        "type": "object",
+        "title": "Generation to run",
+        "required": ["generator"],
+        "properties": {
+          "generator": {
+            "type": "string",
+            "enum": [
+              "id",
+              "key",
+              "pin",
+              "mkpasswd",
+              "age",
+              "ssh-keygen",
+              "openssl-ca",
+              "openssl",
+              "nebula-ca",
+              "nebula",
+              "env",
+              "moustache",
+              "sops"
+            ],
+            "title": "Type of generator"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "id"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Id generator arguments",
+                  "required": ["name"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Where to save the id"
+                    },
+                    "length": {
+                      "type": "number",
+                      "minimum": 0,
+                      "title": "Length of id"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the id be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "key"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Key generator arguments",
+                  "required": ["name"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Where to save the key"
+                    },
+                    "length": {
+                      "type": "number",
+                      "minimum": 0,
+                      "title": "Length of key"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the key be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "pin"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Pin generator arguments",
+                  "required": ["name"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Where to save the pin"
+                    },
+                    "length": {
+                      "type": "number",
+                      "minimum": 0,
+                      "title": "Length of the pin"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the pin be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "mkpasswd"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Mkpasswd generator arguments",
+                  "required": ["private", "public"],
+                  "properties": {
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the clear text password"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the mkpasswd encrypted password"
+                    },
+                    "length": {
+                      "type": "number",
+                      "minimum": 0,
+                      "title": "Length of the password"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the password be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "age"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Age generator arguments",
+                  "required": ["private", "public"],
+                  "properties": {
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the private age key part"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the public age key part"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the age key be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "ssh-keygen"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "ssh-keygen generator arguments",
+                  "required": ["name", "private", "public"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Name (comment) of the ssh key"
+                    },
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the private ssh key part"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the public ssh key part"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the ssh key be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "openssl-ca"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Openssl CA generator arguments",
+                  "required": ["name", "public", "private"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "CA name"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the public part of the CA"
+                    },
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the private part of the CA"
+                    },
+                    "days": {
+                      "type": "number",
+                      "minimum": 0,
+                      "title": "For how many days should the CA be valid"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the CA be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "openssl"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Openssl certificate generator arguments",
+                  "required": [
+                    "ca_public",
+                    "ca_private",
+                    "serial",
+                    "name",
+                    "public",
+                    "private"
+                  ],
+                  "properties": {
+                    "ca_public": {
+                      "type": "string",
+                      "title": "Where to load the public part of the CA"
+                    },
+                    "ca_private": {
+                      "type": "string",
+                      "title": "Where to load the private part of the CA"
+                    },
+                    "serial": {
+                      "type": "string",
+                      "title": "Where to save the serial number"
+                    },
+                    "name": {
+                      "type": "string",
+                      "title": "Certificate name"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the public part of the certificate"
+                    },
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the private part of the certificate"
+                    },
+                    "days": {
+                      "type": "number",
+                      "minimum": 0,
+                      "title": "For how many days should the certificate be valid"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the certificate be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "nebula-ca"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Nebula CA generator arguments",
+                  "required": ["name", "public", "private"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "CA name"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the public part of the CA"
+                    },
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the private part of the CA"
+                    },
+                    "days": {
+                      "type": "string",
+                      "title": "For how many days should the CA be valid"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the CA be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "nebula"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Nebula certificate generator arguments",
+                  "required": [
+                    "ca_public",
+                    "ca_private",
+                    "name",
+                    "ip",
+                    "public",
+                    "private"
+                  ],
+                  "properties": {
+                    "ca_public": {
+                      "type": "string",
+                      "title": "Where to load the public part of the CA"
+                    },
+                    "ca_private": {
+                      "type": "string",
+                      "title": "Where to load the private part of the CA"
+                    },
+                    "name": {
+                      "type": "string",
+                      "title": "Certificate name"
+                    },
+                    "ip": {
+                      "type": "string",
+                      "title": "Certificate IP in CIDR form (ie. 10.8.0.1/24)"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the public part of the certificate"
+                    },
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the private part of the certificate"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the certificate be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "env"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Environment file generator arguments",
+                  "required": ["name", "variables"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Where to save the environment file"
+                    },
+                    "variables": {
+                      "type": "object",
+                      "title": "Variables to insert into the environment file"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the environment file be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "moustache"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Moustache template generator arguments",
+                  "required": ["name", "template", "variables"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Where to save the populated moustache template"
+                    },
+                    "template": {
+                      "type": "string",
+                      "title": "The moustache template"
+                    },
+                    "variables": {
+                      "type": "object",
+                      "title": "Variables to insert into the moustache template"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the file be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "sops"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Sops generator arguments",
+                  "required": ["age", "public", "private", "secrets"],
+                  "properties": {
+                    "age": {
+                      "type": "string",
+                      "title": "Age key with which the secrets will be encrypted"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where the plaintext secrets will be stored"
+                    },
+                    "private": {
+                      "type": "string",
+                      "title": "Where the encrypted secrets will be stored"
+                    },
+                    "secrets": {
+                      "type": "object",
+                      "title": "Secrets to insert into the sops files"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the file be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "exports": {
+      "type": "array",
+      "title": "Exports to run",
+      "items": {
+        "type": "object",
+        "title": "Export to run",
+        "required": ["exporter"],
+        "properties": {
+          "exporter": {
+            "type": "string",
+            "enum": ["vault", "copy"],
+            "title": "Type of exporter"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "exporter": {
+                  "const": "vault"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Vault exporter arguments",
+                  "required": ["path"],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "title": "Path where to save generations file"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "exporter": {
+                  "const": "copy"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Copy exporter arguments",
+                  "required": ["from", "to"],
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "title": "From where to copy the generation file"
+                    },
+                    "to": {
+                      "type": "string",
+                      "title": "Where to put the generation file"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
