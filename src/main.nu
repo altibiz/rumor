@@ -79,6 +79,13 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
         and $import.arguments.allow_fail) {
         $command = $command + $" --allow-fail"
       }
+    } else if ($import.importer == "vault-file") {
+      $command = $command + $" ($import.arguments.path)"
+      $command = $command + $" ($import.arguments.file)"
+      if (($import.arguments | get --ignore-errors allow_fail) != null
+        and $import.arguments.allow_fail) {
+        $command = $command + $" --allow-fail"
+      }
     } else if ($import.importer == "copy") {
       $command = $command + $" ($import.arguments.from)"
       $command = $command + $" ($import.arguments.to)"
@@ -241,6 +248,9 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
 
     if ($export.exporter == "vault") {
       $command = $command + $" ($export.arguments.path)"
+    } else if ($export.exporter == "vault-file") {
+      $command = $command + $" ($export.arguments.path)"
+      $command = $command + $" ($export.arguments.file)"
     } else if ($export.exporter == "copy") {
       $command = $command + $" ($export.arguments.from)"
       $command = $command + $" ($export.arguments.to)"
@@ -276,17 +286,21 @@ def "main import vault" [
   path: string,
   --allow-fail
 ]: nothing -> nothing {
-  let last_component = $path
-    | str trim --char "/"
+  let trimmed_path = $path | str trim --char '/'
+
+  let last_component = $trimmed_path
     | split row "/"
     | last
 
   let result = if $allow_fail {
-      let result = try { medusa export $path | complete }
+      let result = try {
+        medusa export $trimmed_path
+          | complete
+      }
       if ($result.exit_code != 0) {
         return
       }
-      $result.stdout
+      $result.stdout | decode if bytes 
     } else {
       medusa export $path
     }
@@ -299,6 +313,34 @@ def "main import vault" [
   for file in $files {
     $file.value | save -f $file.name 
   }
+}
+
+def "main import vault-file" [
+  path: string,
+  file: string,
+  --allow-fail
+]: nothing -> nothing {
+  let trimmed_path = $path | str trim --char '/'
+
+  let result = if $allow_fail {
+      let result = try {
+        vault kv get -format=json $"($trimmed_path)/current"
+          | complete
+      }
+      if ($result.exit_code != 0) {
+        return
+      }
+      $result.stdout | decode if bytes
+    } else {
+      vault kv get -format=json $"($trimmed_path)/current"
+    }
+
+  let content = $result
+    | from json
+    | get data
+    | get data
+    | get $file
+  $content | save -f $file
 }
 
 def "main export copy" [
@@ -329,6 +371,38 @@ def "main export vault" [
   let time = date now | format date "%Y%m%d%H%M%S"
   let timestamped_path = $"($trimmed_path)/($time)"
   $files | medusa import $timestamped_path -
+}
+
+def "main export vault-file" [
+  path: string,
+  file: string
+]: nothing -> nothing {
+  let trimmed_path = $path | str trim --char '/'
+  let path = $trimmed_path + "/current"
+
+  let content = open --raw $file | str trim
+
+  let existing = (try { vault kv get -format=json $path | complete })
+  let new = if $existing.exit_code == 0 {
+    $existing.stdout
+      | decode if bytes
+      | from json
+      | get data
+      | get data
+      | upsert $file $content
+  } else {
+    null
+  }
+
+  let time = date now | format date "%Y%m%d%H%M%S"
+  let timestamped_path = $"($trimmed_path)/($time)"
+  if $new == null {
+    $content | vault kv put $path $"($file)=-"
+    $content | vault kv put $timestamped_path $"($file)=-"
+  } else {
+    $content | vault kv patch $path $"($file)=-"
+    $new | to yaml | medusa import $timestamped_path -
+  }
 }
 
 def "main generate pin" [
@@ -637,7 +711,12 @@ def "main generate env" [
   let vars = $vars
     | transpose key value
     | each { |pair|
-        let value = open --raw $pair.value
+        let raw = if ($pair.value | path exists) {
+          open --raw $pair.value
+        } else {
+          $pair.value
+        }
+        let value = $raw
           | str trim
           | str replace -a "\n" "\\n"
           | str replace -a "\\" "\\\\"
@@ -676,7 +755,12 @@ def "main generate moustache" [
   let vars = $args.variables
     | transpose key value
     | each { |pair|
-        let value = open --raw $pair.value
+        let raw = if ($pair.value | path exists) {
+          open --raw $pair.value
+        } else {
+          $pair.value
+        }
+        let value = $raw
           | str trim
           | str replace -a "\n" "\\n"
           | str replace -a "\\" "\\\\"
@@ -722,9 +806,15 @@ def "main generate sops" [
   let values = $values
     | transpose key value
     | each { |secret|
+        let raw = if ($secret.value | path exists) {
+          open --raw $secret.value
+        } else {
+          $secret.value
+        }
+        let value = $raw | str trim
         {
           key: $secret.key,
-          value: (open --raw $secret.value | str trim)
+          value: $value
         }
       }
     | transpose -r -d --ignore-titles
@@ -752,4 +842,12 @@ def "main generate sops" [
   }
   rm -f $"($public)-temp"
   chmod 644 $public
+}
+
+def "decode if bytes" []: any -> string {
+  if ($in | describe) == "string" {
+    $in
+  } else {
+    $in | decode
+  }
 }

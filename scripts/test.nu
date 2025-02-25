@@ -51,8 +51,8 @@ def "test" [root: string, test: string]: nothing -> nothing {
   }
   if ($result.exit_code != 0) {
     print $"Rumor failed with exit code '($result.exit_code)'"
-    print $"Stdout:\n($result.stdout)"
-    print $"Stderr:\n($result.stderr)"
+    print $"Stdout:\n($result.stdout | decode if bytes)"
+    print $"Stderr:\n($result.stderr | decode if bytes)"
     exit 1
   }
 
@@ -122,4 +122,12 @@ def snap [value: record, snapshot: record]: nothing -> string {
 
 def delta [minus: string, plus: string]: nothing -> string {
   (try { ^delta $minus $plus | complete }).stdout
+}
+
+def "decode if bytes" []: any -> string {
+  if ($in | describe) == "string" {
+    $in
+  } else {
+    $in | decode
+  }
 }

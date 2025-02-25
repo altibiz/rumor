@@ -34,13 +34,14 @@
       # spelling
       nodePackages.cspell
 
-      # vault
-      pueue
-      vault
-
       # tools
+      pueue
       gum
       delta
+      fd
+      coreutils
+
+      # inputs
       nlohmann_json_schema_validator
       age
       sops
@@ -49,6 +50,7 @@
       mkpasswd
       mo
       openssh
+      vault
       vault-medusa
 
       # misc

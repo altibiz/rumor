@@ -145,7 +145,9 @@ Generates an environment file with `600` permissions.
   - `name` (`path`): Where to save the environment file.
   - `variables` (`object`): Variables to load in the environment file. Each
     variable value is the name of the file which will be opened, escaped, quoted
-    and put into the environment variable.
+    and put into the environment variable. If the file is not present, the
+    literal value of the variable will be escaped and quoted before being put
+    into the environment variable.
   - `renew` (`boolean`, `= false`): Whether to renew the environment file upon
     subsequent generations.
 
@@ -158,7 +160,8 @@ Generates a file based on a Moustache template with `600` permissions.
   - `name` (`path`): Where to save the generated file.
   - `variables` (`object`): Variables to load for inlining in the generated
     file. Each variable value is the name of the file which will be opened to be
-    available in the moustache template.
+    available in the moustache template. If the file is not present, the literal
+    value of the variable will made available in the moustache template.
   - `template` (`string`): The Moustache template.
   - `renew` (`boolean`, `= false`): Whether to renew the generated file upon
     subsequent generations.
@@ -174,6 +177,8 @@ age key to a file with `644` permissions.
   - `private` (`path`): Path where the plaintext secrets will be stored.
   - `public` (`path`): Path where the encrypted secrets will be stored.
   - `secrets` (`object`): Secrets to store. The secret values are paths to files
-    which will be opened and put in the secrets.
+    which will be opened and put in the secrets. If the file is not present, the
+    literal value of the secret will be escaped and quoted before being put into
+    the secrets.
   - `renew` (`boolean`, `= false`): Whether to renew the SOPS file upon
     subsequent generations.

@@ -1,6 +1,10 @@
 { self, pkgs, lib, ... }:
 
 {
+  integrate.nixpkgs.config = {
+    allowUnfree = true;
+  };
+
   seal.defaults.package = "rumor";
   integrate.package.package = pkgs.stdenvNoCC.mkDerivation {
     pname = "rumor";
@@ -18,6 +22,7 @@
       mkpasswd
       mo
       openssh
+      vault
       vault-medusa
     ];
 

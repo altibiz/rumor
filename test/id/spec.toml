@@ -4,9 +4,20 @@ importer = "vault"
 arguments.path = "secret/id"
 arguments.allow_fail = true
 
+[[imports]]
+importer = "vault-file"
+arguments.path = "secret/other"
+arguments.file = "id3"
+arguments.allow_fail = true
+
 [[exports]]
 exporter = "vault"
 arguments.path = "secret/id"
+
+[[exports]]
+exporter = "vault-file"
+arguments.path = "secret/other"
+arguments.file = "id3"
 
 [[generations]]
 generator = "id"
@@ -17,6 +28,12 @@ arguments.length = 16
 generator = "id"
 arguments.name = "id2"
 arguments.length = 3
+
+[[generations]]
+generator = "id"
+arguments.name = "id3"
+arguments.length = 10
+renew = true
 
 [[generations]]
 generator = "key"
@@ -66,6 +83,7 @@ renew = true
 [generations.arguments.secrets]
 id = "id"
 id2 = "id2"
+id3 = "id3"
 key = "key"
 pin = "pin"
 pass-pub = "pass-pub"

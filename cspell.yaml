@@ -27,3 +27,6 @@ words:
   - pueue
   - pueued
   - mktemp
+  - stdenv
+  - pname
+  - coreutils
