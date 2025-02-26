@@ -13,6 +13,7 @@ let
     openssh
     vault
     vault-medusa
+    coreutils
   ];
 
   shebang =
