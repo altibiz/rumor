@@ -1,5 +1,24 @@
 { self, pkgs, lib, ... }:
 
+let
+  buildInputs = with pkgs; [
+    nushell
+    nlohmann_json_schema_validator
+    age
+    sops
+    nebula
+    openssl
+    mkpasswd
+    mo
+    openssh
+    vault
+    vault-medusa
+  ];
+
+  shebang =
+    ''#!${pkgs.nushell}/bin/nu --stdin''
+    + ''\n$env.PATH = "${lib.makeBinPath buildInputs}"'';
+in
 {
   integrate.nixpkgs.config = {
     allowUnfree = true;
@@ -12,23 +31,15 @@
 
     src = self;
 
-    buildInputs = with pkgs; [
-      nushell
-      nlohmann_json_schema_validator
-      age
-      sops
-      nebula
-      openssl
-      mkpasswd
-      mo
-      openssh
-      vault
-      vault-medusa
-    ];
+    inherit buildInputs;
 
     patchPhase = ''
       runHook prePatch
-      
+
+      sed \
+        -i 's|#!/usr/bin/env -S nu --stdin|${shebang}|g' \
+        ./src/main.nu
+
       sed \
         -i 's|\$"(\$env.FILE_PWD)/schema.json"'"|\"$out/share/rumor/schema.json\"|g" \
         ./src/main.nu
