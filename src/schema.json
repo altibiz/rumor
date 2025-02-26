@@ -14,7 +14,7 @@
         "properties": {
           "importer": {
             "type": "string",
-            "enum": ["vault", "copy"],
+            "enum": ["vault", "vault-file", "copy"],
             "title": "Type of importer"
           }
         },
@@ -38,6 +38,39 @@
                     "path": {
                       "type": "string",
                       "title": "Path where to load generations from"
+                    },
+                    "allow_fail": {
+                      "type": "boolean",
+                      "title": "Allow failing to load generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "importer": {
+                  "const": "vault-file"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Vault file importer arguments",
+                  "required": ["path", "file"],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "title": "Path where to load generations from"
+                    },
+                    "file": {
+                      "type": "string",
+                      "title": "File to load from generation"
                     },
                     "allow_fail": {
                       "type": "boolean",
@@ -647,7 +680,7 @@
         "properties": {
           "exporter": {
             "type": "string",
-            "enum": ["vault", "copy"],
+            "enum": ["vault", "vault-file", "copy"],
             "title": "Type of exporter"
           }
         },
@@ -671,6 +704,35 @@
                     "path": {
                       "type": "string",
                       "title": "Path where to save generations file"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "exporter": {
+                  "const": "vault-file"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Vault file exporter arguments",
+                  "required": ["path", "file"],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "title": "Path where to save generations file"
+                    },
+                    "file": {
+                      "type": "string",
+                      "title": "File to export"
                     }
                   }
                 }

@@ -3,3 +3,4 @@ id2: "[a-zA-Z0-9]{3}"
 env: |-
   ID="[a-zA-Z0-9]{16}"
   ID2="[a-zA-Z0-9]{3}"
+  CUSTOM="custom"

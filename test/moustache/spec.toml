@@ -27,11 +27,13 @@ name = "moustache"
 template = """
 ID is {{ID}}
 ID2 is {{ID2}}
+CUSTOM is {{CUSTOM}}
 """
 
 [generations.arguments.variables]
 ID = "id"
 ID2 = "id2"
+CUSTOM = "custom"
 
 [[generations]]
 generator = "age"

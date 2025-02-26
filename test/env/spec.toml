@@ -28,6 +28,7 @@ name = "env"
 [generations.arguments.variables]
 ID = "id"
 ID2 = "id2"
+CUSTOM = "custom"
 
 [[generations]]
 generator = "age"
