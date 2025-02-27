@@ -288,9 +288,10 @@ def "main import vault" [
 ]: nothing -> nothing {
   let trimmed_path = $path | str trim --char '/'
 
-  let last_component = $trimmed_path
+  let components = $trimmed_path
     | split row "/"
-    | last
+    | skip 1
+    | into cell-path
 
   let result = if $allow_fail {
       let result = try {
@@ -307,7 +308,7 @@ def "main import vault" [
 
   let files = $result
     | from yaml
-    | get $last_component
+    | get $components
     | get current
     | transpose name value
   for file in $files {
