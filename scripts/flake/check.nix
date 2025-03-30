@@ -45,6 +45,9 @@
       openssh
       vault
       vault-medusa
+    ] ++ (lib.optionals pkgs.hostPlatform.isLinux [
+      cockroachdb
+    ]) ++ [
 
       # misc
       nodePackages.prettier
