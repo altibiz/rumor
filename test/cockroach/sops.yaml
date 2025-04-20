@@ -1,0 +1,20 @@
+cockroach-ca-priv: |-
+  -----BEGIN RSA PRIVATE KEY-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END RSA PRIVATE KEY-----
+cockroach-pub: |-
+  -----BEGIN CERTIFICATE-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END CERTIFICATE-----
+cockroach-priv: |-
+  -----BEGIN RSA PRIVATE KEY-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END RSA PRIVATE KEY-----
+cockroach-client-pub: |-
+  -----BEGIN CERTIFICATE-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END CERTIFICATE-----
+cockroach-client-priv: |-
+  -----BEGIN RSA PRIVATE KEY-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END RSA PRIVATE KEY-----

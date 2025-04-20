@@ -1,0 +1,61 @@
+#:schema ../../src/schema.json
+[[imports]]
+importer = "vault"
+arguments.path = "secret/cockroach"
+arguments.allow_fail = true
+
+[[exports]]
+exporter = "vault"
+arguments.path = "secret/cockroach"
+
+[[generations]]
+generator = "cockroach-ca"
+
+[generations.arguments]
+name = "ca"
+public = "cockroach-ca-pub"
+private = "cockroach-ca-priv"
+
+[[generations]]
+generator = "cockroach"
+
+[generations.arguments]
+ca_public = "cockroach-ca-pub"
+ca_private = "cockroach-ca-priv"
+hosts = ["node"]
+public = "cockroach-pub"
+private = "cockroach-priv"
+renew = true
+
+[[generations]]
+generator = "cockroach-client"
+
+[generations.arguments]
+ca_public = "cockroach-ca-pub"
+ca_private = "cockroach-ca-priv"
+public = "cockroach-client-pub"
+private = "cockroach-client-priv"
+renew = true
+
+[[generations]]
+generator = "age"
+
+[generations.arguments]
+public = "age.txt.pub"
+private = "age.txt"
+
+[[generations]]
+generator = "sops"
+
+[generations.arguments]
+age = "age.txt.pub"
+public = "sops.yaml.pub"
+private = "sops.yaml"
+
+[generations.arguments.secrets]
+cockroach-ca-pub = "cockroach-ca-pub"
+cockroach-ca-priv = "cockroach-ca-priv"
+cockroach-pub = "cockroach-pub"
+cockroach-priv = "cockroach-priv"
+cockroach-client-pub = "cockroach-client-pub"
+cockroach-client-priv = "cockroach-client-priv"
