@@ -129,8 +129,49 @@ Generates an Nebula certificate with `600` permissions for the private part and
 - Arguments:
   - `ca_private` (`path`): Path to the Nebula CA private part.
   - `ca_public` (`path`): Path to the Nebula CA public part.
-  - `serial` (`path`): Where to save the serial number.
   - `name` (`string`): Name (subject) of the certificate.
+  - `ip` (`string`): Certificate IP in CIDR form (ie. 10.8.0.1/24).
+  - `private` (`path`): Path where to save the private part.
+  - `public` (`path`): Path where to save the public part.
+  - `renew` (`boolean`, `= false`): Whether to renew the certificate upon
+    subsequent generations.
+
+## Cockroachdb CA
+
+Generates a self-signed Cockroachdb CA with `600` permissions for the private
+part and `644` permissions for the public part.
+
+- Type: `cockroach-ca`
+- Arguments:
+  - `private` (`path`): Path where to save the private part.
+  - `public` (`path`): Path where to save the public part.
+  - `renew` (`boolean`, `= false`): Whether to renew the CA upon subsequent
+    generations.
+
+## Cockroachdb node certificate
+
+Generates an Cockroachdb node certificate with `600` permissions for the private
+part and `644` permissions for the public part.
+
+- Type: `cockroach`
+- Arguments:
+  - `ca_private` (`path`): Path to the Cockroachdb CA private part.
+  - `ca_public` (`path`): Path to the Cockroachdb CA public part.
+  - `hosts` (`array of string`): Cockroach node IP/DNS names.
+  - `private` (`path`): Path where to save the private part.
+  - `public` (`path`): Path where to save the public part.
+  - `renew` (`boolean`, `= false`): Whether to renew the certificate upon
+    subsequent generations.
+
+## Cockroachdb client certificate
+
+Generates an Cockroachdb client certificate with `600` permissions for the
+private part and `644` permissions for the public part.
+
+- Type: `cockroach`
+- Arguments:
+  - `ca_private` (`path`): Path to the Cockroachdb CA private part.
+  - `ca_public` (`path`): Path to the Cockroachdb CA public part.
   - `private` (`path`): Path where to save the private part.
   - `public` (`path`): Path where to save the public part.
   - `renew` (`boolean`, `= false`): Whether to renew the certificate upon
