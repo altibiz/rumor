@@ -30,3 +30,4 @@ words:
   - stdenv
   - pname
   - coreutils
+  - cockroachdb
