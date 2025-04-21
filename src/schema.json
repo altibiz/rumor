@@ -138,6 +138,9 @@
               "openssl",
               "nebula-ca",
               "nebula",
+              "cockroach-ca",
+              "cockroach",
+              "cockroach-client",
               "env",
               "moustache",
               "sops"
@@ -538,6 +541,134 @@
                     "ip": {
                       "type": "string",
                       "title": "Certificate IP in CIDR form (ie. 10.8.0.1/24)"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the public part of the certificate"
+                    },
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the private part of the certificate"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the certificate be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "cockroach-ca"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "cockroach CA generator arguments",
+                  "required": ["public", "private"],
+                  "properties": {
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the public part of the CA"
+                    },
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the private part of the CA"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the CA be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "cockroach"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "cockroach node certificate generator arguments",
+                  "required": [
+                    "ca_public",
+                    "ca_private",
+                    "hosts",
+                    "public",
+                    "private"
+                  ],
+                  "properties": {
+                    "ca_public": {
+                      "type": "string",
+                      "title": "Where to load the public part of the CA"
+                    },
+                    "ca_private": {
+                      "type": "string",
+                      "title": "Where to load the private part of the CA"
+                    },
+                    "hosts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "title": "Cockroach node IP/DNS names"
+                    },
+                    "public": {
+                      "type": "string",
+                      "title": "Where to save the public part of the certificate"
+                    },
+                    "private": {
+                      "type": "string",
+                      "title": "Where to save the private part of the certificate"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the certificate be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "cockroach-client"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "cockroach client certificate generator arguments",
+                  "required": ["ca_public", "ca_private", "public", "private"],
+                  "properties": {
+                    "ca_public": {
+                      "type": "string",
+                      "title": "Where to load the public part of the CA"
+                    },
+                    "ca_private": {
+                      "type": "string",
+                      "title": "Where to load the private part of the CA"
                     },
                     "public": {
                       "type": "string",

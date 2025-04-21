@@ -14,7 +14,9 @@ let
     vault
     vault-medusa
     coreutils
-  ];
+  ] ++ (lib.optionals pkgs.hostPlatform.isLinux [
+    cockroachdb
+  ]);
 
   shebang =
     ''#!${pkgs.nushell}/bin/nu --stdin''

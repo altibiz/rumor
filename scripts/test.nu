@@ -6,23 +6,82 @@ def "main" [] {
 
 def "main start" []: nothing -> nothing {
   pueued -d
-  sleep 1sec
-  pueue add vault server -dev -dev-root-token-id=root 
-  sleep 1sec
+  mut ready = false
+  while not $ready {
+    print "Waiting for pueued..."
+    let result = (try { pueue status | complete })
+    if ($result.exit_code == 0) {
+      print $"Pueued ready\n($result.stdout)"
+      $ready = true
+    } else {
+      sleep 500ms
+    }
+  }
+  (pueue add
+    vault server
+      -dev
+      $"-dev-listen-address=($env.VAULT_DEV_ADDR)"
+      -dev-root-token-id=root) 
+  mut ready = false
+  while not $ready {
+    print "Waiting for vault..."
+    let result = (try { 
+      curl -s http://127.0.0.1:8201/v1/sys/health
+      | complete
+    })
+    if ($result.exit_code == 0) {
+      print $"Vault ready\n($result.stdout | from json | to json --indent 2)"
+      $ready = true
+    } else {
+      sleep 500ms
+    }
+  }
 }
 
 def "main stop" []: nothing -> nothing {
+  let result = (try { pueue status --json | complete })
+  if ($result.exit_code != 0) {
+    return
+  }
+
   try { pueue reset -f }
-  sleep 1sec
+  mut ready = false
+  while not $ready {
+    print "Waiting for pueued..."
+    let result = (try { pueue status --json | complete })
+    let json = $result.stdout | from json
+    if (($result.exit_code == 0) and ($json.tasks | is-empty)) {
+      print $"Pueued ready\n($json | to json --indent 2)"
+      $ready = true
+    } else {
+      sleep 500ms
+    }
+  }
   try { pueue shutdown }
-  sleep 1sec
+  mut ready = false
+  while not $ready {
+    print "Waiting for pueued..."
+    let result = (try { pueue status --json | complete })
+    let json = $result.stdout | from json
+    if ($result.exit_code != 0) {
+      print $"Pueued shutdown"
+      $ready = true
+    } else {
+      sleep 500ms
+    }
+  }
 }
 
 def "main all" [root: string]: nothing -> nothing {
   main stop
   main start
-  for test in (ls $"($root)/test") {
-    let test = $test.name | path basename
+  # TODO: add cockroach test
+  let tests = ls $"($root)/test"
+    | each { |test| $test.name | path basename }
+    | where $it != "cockroach"
+  print $"Running tests: ($tests | str join ', ')"
+  for test in $tests {
+    print $"Running test: ($test)"
     test renew $root $test
   }
 }
@@ -30,6 +89,12 @@ def "main all" [root: string]: nothing -> nothing {
 def "main one" [root: string, test: string]: nothing -> nothing {
   main stop
   main start
+  let tests = ls $"($root)/test" | each { |test| $test.name | path basename }
+  if (not ($tests | any { |x| $x == $test })) {
+    print $"Unknown test: ($test)"
+    exit 1
+  }
+  print $"Running test: ($test)"
   test renew $root $test
 }
 
@@ -43,7 +108,7 @@ def "test renew" [root: string, test: string]: nothing -> nothing {
 
 def "test" [root: string, test: string]: nothing -> nothing {
   let result = try {
-    nu -c ($"($root)/src/main.nu"
+    nu -n -c ($"($root)/src/main.nu"
       + $" ($root)/test/($test)/spec.toml"
       + " --stay"
       + " --keep")

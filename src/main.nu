@@ -179,6 +179,32 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
         and $generation.arguments.renew) {
         $command = $command + $" --renew"
       }
+    } else if $generation.generator == "cockroach-ca" {
+      $command = $command + $" ($generation.arguments.public)" 
+      $command = $command + $" ($generation.arguments.private)" 
+      if (($generation.arguments | get --ignore-errors renew) != null
+        and $generation.arguments.renew) {
+        $command = $command + $" --renew"
+      }
+    } else if $generation.generator == "cockroach" {
+      $command = $command + $" ($generation.arguments.ca_public)" 
+      $command = $command + $" ($generation.arguments.ca_private)" 
+      $stdin = $generation.arguments.hosts | str join " "
+      $command = $command + $" ($generation.arguments.public)" 
+      $command = $command + $" ($generation.arguments.private)" 
+      if (($generation.arguments | get --ignore-errors renew) != null
+        and $generation.arguments.renew) {
+        $command = $command + $" --renew"
+      }
+    } else if $generation.generator == "cockroach-client" {
+      $command = $command + $" ($generation.arguments.ca_public)" 
+      $command = $command + $" ($generation.arguments.ca_private)" 
+      $command = $command + $" ($generation.arguments.public)" 
+      $command = $command + $" ($generation.arguments.private)" 
+      if (($generation.arguments | get --ignore-errors renew) != null
+        and $generation.arguments.renew) {
+        $command = $command + $" --renew"
+      }
     } else if $generation.generator == "openssl-ca" {
       $command = $command + $" ($generation.arguments.name)" 
       $command = $command + $" ($generation.arguments.public)" 
@@ -694,6 +720,105 @@ def "main generate nebula" [
   }
   rm -f $"($public)-temp"
   chmod 644 $public
+}
+
+def "main generate cockroach-ca" [
+  public: path,
+  private: path,
+  --renew
+]: nothing -> nothing {
+  rm -rf cockroach-temp
+  mkdir cockroach-temp
+
+  (cockroach cert create-ca
+    --certs-dir=cockroach-temp
+    --ca-key=cockroach-temp/ca.key)
+
+  if $renew {
+    mv -f $"cockroach-temp/ca.key" $private
+  } else {
+    try { mv -n $"cockroach-temp/ca.key" $private }
+  }
+  chmod 600 $private
+
+  if $renew {
+    mv -f $"cockroach-temp/ca.crt" $public
+  } else {
+    try { mv -n $"cockroach-temp/ca.crt" $public }
+  }
+  chmod 644 $public
+
+  rm -rf cockroach-temp
+}
+
+def "main generate cockroach" [
+  ca_public: path,
+  ca_private: path,
+  public: path,
+  private: path,
+  --renew
+]: nothing -> nothing {
+  rm -rf cockroach-temp
+  mkdir cockroach-temp
+
+  cp $ca_private cockroach-temp/ca.key
+  cp $ca_public cockroach-temp/ca.crt
+
+  (cockroach cert create-node
+    ...($in | split row " ")
+    --certs-dir=cockroach-temp
+    --ca-key=cockroach-temp/ca.key)
+
+  if $renew {
+    mv -f $"cockroach-temp/node.key" $private
+  } else {
+    try { mv -n $"cockroach-temp/node.key" $private }
+  }
+  chmod 600 $private
+
+  if $renew {
+    mv -f $"cockroach-temp/node.crt" $public
+  } else {
+    try { mv -n $"cockroach-temp/node.crt" $public }
+  }
+  chmod 644 $public
+
+  rm -rf cockroach-temp
+}
+
+def "main generate cockroach-client" [
+  ca_public: path,
+  ca_private: path,
+  public: path,
+  private: path,
+  --renew
+]: nothing -> nothing {
+  rm -rf cockroach-temp
+  mkdir cockroach-temp
+
+  cp $ca_private cockroach-temp/ca.key
+  cp $ca_public cockroach-temp/ca.crt
+
+  (cockroach cert create-client
+    "client"
+    --certs-dir=cockroach-temp
+    --ca-key=cockroach-temp/ca.key)
+
+  if $renew {
+    mv -f $"cockroach-temp/client.client.key" $private
+  } else {
+    try { mv -n $"cockroach-temp/client.client.key" $private }
+  }
+  chmod 600 $private
+
+  if $renew {
+    mv -f $"cockroach-temp/client.client.crt" $public
+  } else {
+    try { mv -n $"cockroach-temp/client.client.crt" $public }
+  }
+  chmod 644 $public
+
+  rm -rf cockroach-temp
 }
 
 def "main generate env" [
