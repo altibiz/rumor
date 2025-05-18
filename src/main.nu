@@ -201,6 +201,7 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
       $command = $command + $" ($generation.arguments.ca_private)" 
       $command = $command + $" ($generation.arguments.public)" 
       $command = $command + $" ($generation.arguments.private)" 
+      $command = $command + $" ($generation.arguments.user)" 
       if (($generation.arguments | get --ignore-errors renew) != null
         and $generation.arguments.renew) {
         $command = $command + $" --renew"
@@ -791,6 +792,7 @@ def "main generate cockroach-client" [
   ca_private: path,
   public: path,
   private: path,
+  user: string,
   --renew
 ]: nothing -> nothing {
   rm -rf cockroach-temp
@@ -800,21 +802,21 @@ def "main generate cockroach-client" [
   cp $ca_public cockroach-temp/ca.crt
 
   (cockroach cert create-client
-    "client"
+    $user
     --certs-dir=cockroach-temp
     --ca-key=cockroach-temp/ca.key)
 
   if $renew {
-    mv -f $"cockroach-temp/client.client.key" $private
+    mv -f $"cockroach-temp/client.($user).key" $private
   } else {
-    try { mv -n $"cockroach-temp/client.client.key" $private }
+    try { mv -n $"cockroach-temp/client.($user).key" $private }
   }
   chmod 600 $private
 
   if $renew {
-    mv -f $"cockroach-temp/client.client.crt" $public
+    mv -f $"cockroach-temp/client.($user).crt" $public
   } else {
-    try { mv -n $"cockroach-temp/client.client.crt" $public }
+    try { mv -n $"cockroach-temp/client.($user).crt" $public }
   }
   chmod 644 $public
 

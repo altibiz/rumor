@@ -168,12 +168,13 @@ part and `644` permissions for the public part.
 Generates an Cockroachdb client certificate with `600` permissions for the
 private part and `644` permissions for the public part.
 
-- Type: `cockroach`
+- Type: `cockroach-client`
 - Arguments:
   - `ca_private` (`path`): Path to the Cockroachdb CA private part.
   - `ca_public` (`path`): Path to the Cockroachdb CA public part.
   - `private` (`path`): Path where to save the private part.
   - `public` (`path`): Path where to save the public part.
+  - `user` (`string`): CockroachDB user name.
   - `renew` (`boolean`, `= false`): Whether to renew the certificate upon
     subsequent generations.
 
