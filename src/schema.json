@@ -660,7 +660,13 @@
                 "arguments": {
                   "type": "object",
                   "title": "cockroach client certificate generator arguments",
-                  "required": ["ca_public", "ca_private", "public", "private"],
+                  "required": [
+                    "ca_public",
+                    "ca_private",
+                    "public",
+                    "private",
+                    "user"
+                  ],
                   "properties": {
                     "ca_public": {
                       "type": "string",
@@ -677,6 +683,10 @@
                     "private": {
                       "type": "string",
                       "title": "Where to save the private part of the certificate"
+                    },
+                    "user": {
+                      "type": "string",
+                      "title": "CockroachDB user name"
                     },
                     "renew": {
                       "type": "boolean",
