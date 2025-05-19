@@ -6,7 +6,8 @@
   };
 
   integrate.devShell.devShell = pkgs.mkShell {
-    VAULT_ADDR = "http://127.0.0.1:8200";
+    VAULT_DEV_ADDR = "127.0.0.1:8202";
+    VAULT_ADDR = "http://127.0.0.1:8202";
     VAULT_TOKEN = "root";
 
     packages = with pkgs; [
