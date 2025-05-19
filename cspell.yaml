@@ -31,3 +31,5 @@ words:
   - pname
   - coreutils
   - cockroachdb
+  - bwrap
+  - setuid

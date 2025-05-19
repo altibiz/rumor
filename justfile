@@ -1,9 +1,6 @@
 set windows-shell := ["nu.exe", "-c"]
 set shell := ["nu", "-c"]
 
-export VAULT_ADDR := "http://127.0.0.1:8201"
-export VAULT_TOKEN := "root"
-export VAULT_DEV_ADDR := "127.0.0.1:8201"
 root := absolute_path('')
 
 default:

@@ -26,7 +26,7 @@ def "main start" []: nothing -> nothing {
   while not $ready {
     print "Waiting for vault..."
     let result = (try { 
-      curl -s http://127.0.0.1:8201/v1/sys/health
+      curl -s $"($env.VAULT_ADDR)/v1/sys/health"
       | complete
     })
     if ($result.exit_code == 0) {
@@ -75,7 +75,7 @@ def "main stop" []: nothing -> nothing {
 def "main all" [root: string]: nothing -> nothing {
   main stop
   main start
-  # TODO: add cockroach test
+  # TODO: fix bwrap setuid problem with cockroach
   let tests = ls $"($root)/test"
     | each { |test| $test.name | path basename }
     | where $it != "cockroach"

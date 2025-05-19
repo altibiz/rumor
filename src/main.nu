@@ -363,11 +363,23 @@ def "main import vault-file" [
       vault kv get -format=json $"($trimmed_path)/current"
     }
 
-  let content = $result
-    | from json
-    | get data
-    | get data
-    | get $file
+  let content = if $allow_fail {
+    let content = $result
+      | from json
+      | get data
+      | get data
+      | get $file --ignore-errors
+    if $content == null {
+      return
+    }
+    $content
+  } else {
+    $result
+      | from json
+      | get data
+      | get data
+      | get $file
+  }
   $content | save -f $file
 }
 
