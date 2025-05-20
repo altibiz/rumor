@@ -71,7 +71,6 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
 
   for import in $specification.imports {
     mut command = $"($main) import ($import.importer)"
-    mut stdin = ""
 
     if ($import.importer == "vault") {
       $command = $command + $" ($import.arguments.path)"
@@ -95,17 +94,56 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
       }
     }
 
-    if ($stdin | is-not-empty) {
-      $stdin | nu --stdin -c $command
-    } else {
-      nu -c $command
-    }
+    nu -c $command
   }
 
   for generation in $specification.generations {
     mut command = $"($main) generate ($generation.generator)"
-    mut stdin = ""
-    if $generation.generator == "id" {
+    if $generation.generator == "copy" {
+      $command = $command + $" ($generation.arguments.from)" 
+      $command = $command + $" ($generation.arguments.to)" 
+      if (($generation.arguments | get --ignore-errors renew) != null
+        and $generation.arguments.renew) {
+        $command = $command + $" --renew"
+      }
+    } else if $generation.generator == "text" {
+      $command = $command + $" ($generation.arguments.name)" 
+      $command = $command + $" \"($generation.arguments.text | escape string)\"" 
+      if (($generation.arguments | get --ignore-errors renew) != null
+        and $generation.arguments.renew) {
+        $command = $command + $" --renew"
+      }
+    } else if $generation.generator == "json" {
+      $command = $command + $" ($generation.arguments.name)" 
+      let json = $"($generation.arguments.name)-json"
+      $generation.arguments.value | to json | save -f $json
+      $command = $command + $" json" 
+      $command = $command + $" ($json)" 
+      if (($generation.arguments | get --ignore-errors renew) != null
+        and $generation.arguments.renew) {
+        $command = $command + $" --renew"
+      }
+    } else if $generation.generator == "yaml" {
+      $command = $command + $" ($generation.arguments.name)" 
+      let yaml = $"($generation.arguments.name)-yaml"
+      $generation.arguments.value | to yaml | save -f $yaml
+      $command = $command + $" yaml" 
+      $command = $command + $" ($yaml)" 
+      if (($generation.arguments | get --ignore-errors renew) != null
+        and $generation.arguments.renew) {
+        $command = $command + $" --renew"
+      }
+    } else if $generation.generator == "toml" {
+      $command = $command + $" ($generation.arguments.name)" 
+      let toml = $"($generation.arguments.name)-toml"
+      $generation.arguments.value | to toml | save -f $toml
+      $command = $command + $" toml" 
+      $command = $command + $" ($toml)" 
+      if (($generation.arguments | get --ignore-errors renew) != null
+        and $generation.arguments.renew) {
+        $command = $command + $" --renew"
+      }
+    } else if $generation.generator == "id" {
       $command = $command + $" ($generation.arguments.name)" 
       if (($generation.arguments | get --ignore-errors length) != null) {
         $command = $command + $" --length ($generation.arguments.length)"
@@ -189,9 +227,9 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
     } else if $generation.generator == "cockroach" {
       $command = $command + $" ($generation.arguments.ca_public)" 
       $command = $command + $" ($generation.arguments.ca_private)" 
-      $stdin = $generation.arguments.hosts | str join " "
       $command = $command + $" ($generation.arguments.public)" 
       $command = $command + $" ($generation.arguments.private)" 
+      $command = $command + $" ($generation.arguments.hosts | str join ",")"
       if (($generation.arguments | get --ignore-errors renew) != null
         and $generation.arguments.renew) {
         $command = $command + $" --renew"
@@ -207,7 +245,7 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
         $command = $command + $" --renew"
       }
     } else if $generation.generator == "openssl-ca" {
-      $command = $command + $" ($generation.arguments.name)" 
+      $command = $command + $" ($generation.arguments.config)" 
       $command = $command + $" ($generation.arguments.public)" 
       $command = $command + $" ($generation.arguments.private)" 
       if (($generation.arguments | get --ignore-errors days) != null) {
@@ -217,11 +255,17 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
         and $generation.arguments.renew) {
         $command = $command + $" --renew"
       }
+    } else if $generation.generator == "openssl-dhparam" {
+      $command = $command + $" ($generation.arguments.name)" 
+      if (($generation.arguments | get --ignore-errors renew) != null
+        and $generation.arguments.renew) {
+        $command = $command + $" --renew"
+      }
     } else if $generation.generator == "openssl" {
       $command = $command + $" ($generation.arguments.ca_public)" 
       $command = $command + $" ($generation.arguments.ca_private)" 
       $command = $command + $" ($generation.arguments.serial)" 
-      $command = $command + $" ($generation.arguments.name)" 
+      $command = $command + $" ($generation.arguments.config)" 
       $command = $command + $" ($generation.arguments.public)" 
       $command = $command + $" ($generation.arguments.private)" 
       if (($generation.arguments | get --ignore-errors days) != null) {
@@ -234,44 +278,45 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
     } else if $generation.generator == "env" {
       $command = $command + $" ($generation.arguments.name)" 
       $command = $command + $" json" 
+      let variables = $"($generation.arguments.name)-variables"
+      $generation.arguments.variables | to json | save -f $variables
+      $command = $command + $" ($variables)"
       if (($generation.arguments | get --ignore-errors renew) != null
         and $generation.arguments.renew) {
         $command = $command + $" --renew"
       }
-      $stdin = $generation.arguments.variables | to json
     } else if $generation.generator == "moustache" {
       $command = $command + $" ($generation.arguments.name)" 
       $command = $command + $" json" 
+      let variables_and_template = $"($generation.arguments.name)-variables-and-template"
+      {
+        variables: $generation.arguments.variables
+        template: $generation.arguments.template
+      } | to json | save -f $variables_and_template
+      $command = $command + $" ($variables_and_template)"
       if (($generation.arguments | get --ignore-errors renew) != null
         and $generation.arguments.renew) {
         $command = $command + $" --renew"
       }
-      $stdin = {
-        variables: $generation.arguments.variables
-        template: $generation.arguments.template
-      } | to json
     } else if $generation.generator == "sops" {
       $command = $command + $" ($generation.arguments.age)" 
       $command = $command + $" ($generation.arguments.public)" 
       $command = $command + $" ($generation.arguments.private)" 
       $command = $command + $" json" 
+      let secrets = $"($generation.arguments.private)-secrets"
+      $generation.arguments.secrets | to json | save -f $secrets
+      $command = $command + $" ($secrets)"
       if (($generation.arguments | get --ignore-errors renew) != null
         and $generation.arguments.renew) {
         $command = $command + $" --renew"
       }
-      $stdin = $generation.arguments.secrets | to json
     }
 
-    if ($stdin | is-not-empty) {
-      $stdin | nu --stdin -c $command
-    } else {
-      nu -c $command
-    }
+    nu -c $command
   }
 
   for export in $specification.exports {
     mut command = $"($main) export ($export.exporter)"
-    mut stdin = ""
 
     if ($export.exporter == "vault") {
       $command = $command + $" ($export.arguments.path)"
@@ -281,12 +326,6 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
     } else if ($export.exporter == "copy") {
       $command = $command + $" ($export.arguments.from)"
       $command = $command + $" ($export.arguments.to)"
-    }
-
-    if ($stdin | is-not-empty) {
-      $stdin | nu --stdin -c $command
-    } else {
-      nu -c $command
     }
   }
 
@@ -301,9 +340,7 @@ def "main import copy" [
   --allow-fail
 ]: nothing -> nothing {
   if $allow_fail {
-    try {
-      cp -f $from $to
-    }
+    try { cp -n $from $to }
   } else {
     cp -f $from $to
   }
@@ -445,6 +482,97 @@ def "main export vault-file" [
   }
 }
 
+def "main generate copy" [
+  from: path,
+  to: path,
+  --renew
+]: nothing -> nothing {
+  if $renew {
+    cp -f $from $to
+  } else {
+    try { cp -n $from $to }    
+  }
+}
+
+def "main generate text" [
+  name: path,
+  text: string,
+  --renew
+]: nothing -> nothing {
+  if $renew {
+    $text | save -f $"($name)"
+  } else {
+    $text | try { save $"($name)" }
+  }
+  chmod 600 $"($name)"
+}
+
+def "main generate json" [
+  name: path,
+  format: string,
+  json: string,
+  --renew
+]: nothing -> nothing {
+  let json = if $format == "json" {
+    open --raw $json
+  } else if $format == "yaml" {
+    open --raw $json | from yaml | to json
+  } else if $format == "toml" {
+    open --raw $json | from toml | to json
+  }
+
+  if $renew {
+    $json | save -f $"($name)"
+  } else {
+    $json | try { save $"($name)" }
+  }
+  chmod 600 $"($name)"
+}
+
+def "main generate yaml" [
+  name: path,
+  format: string,
+  yaml: string,
+  --renew
+]: nothing -> nothing {
+  let yaml = if $format == "json" {
+    open --raw $yaml | from json | to yaml
+  } else if $format == "yaml" {
+    open --raw $yaml
+  } else if $format == "toml" {
+    open --raw $yaml | from toml | to yaml
+  }
+
+  if $renew {
+    $yaml | save -f $"($name)"
+  } else {
+    $yaml | try { save $"($name)" }
+  }
+  chmod 600 $"($name)"
+}
+
+def "main generate toml" [
+  name: path,
+  format: string,
+  toml: path,
+  --renew
+]: nothing -> nothing {
+  let toml = if $format == "json" {
+    open --raw $toml | from json | to toml
+  } else if $format == "yaml" {
+    open --raw $toml | from yaml | to toml
+  } else if $format == "toml" {
+    open --raw $toml
+  }
+
+  if $renew {
+    $toml | save -f $"($name)"
+  } else {
+    $toml | try { save $"($name)" }
+  }
+  chmod 600 $"($name)"
+}
+
 def "main generate pin" [
   name: path,
   --length: int = 8
@@ -574,7 +702,7 @@ def "main generate ssh-keygen" [
 }
 
 def "main generate openssl-ca" [
-  name: string,
+  config: string,
   public: path,
   private: path,
   --days: int = 3650,
@@ -586,7 +714,8 @@ def "main generate openssl-ca" [
   (openssl req -x509
     -key $"($private)-temp"
     -out $"($public)-temp"
-    -subj $"/CN=($name)"
+    -config $config
+    -extensions v3_ca
     -days $days)
 
   if $renew {
@@ -606,11 +735,25 @@ def "main generate openssl-ca" [
   chmod 644 $public
 }
 
+def "main generate openssl-dhparam" [
+  name: path,
+  --renew
+]: nothing -> nothing {
+  openssl dhparam -out $"($name)-temp" 2048
+  if $renew {
+    mv -f $"($name)-temp" $name
+  } else {
+    try { mv -n $"($name)-temp" $name }
+  }
+  rm -f $"($name)-temp"
+  chmod 600 $name
+}
+
 def "main generate openssl" [
   ca_public: path,
   ca_private: path,
   serial: path,
-  name: string,
+  config: string,
   public: path,
   private: path,
   --days: int = 3650
@@ -622,7 +765,7 @@ def "main generate openssl" [
   (openssl req -new
     -key $"($private)-temp"
     -out $"($private)-temp.req"
-    -subj $"/CN=($name)")
+    -config $config)
 
   if ($serial | path exists) {
     cp $serial $"($serial)-temp"
@@ -631,6 +774,8 @@ def "main generate openssl" [
       -CA $ca_public
       -CAkey $ca_private
       -CAserial $"($serial)-temp"
+      -extfile $config
+      -extensions ext
       -out $"($public)-temp"
       -days $days)
   } else {
@@ -639,6 +784,8 @@ def "main generate openssl" [
       -CA $ca_public
       -CAkey $ca_private
       -CAcreateserial
+      -extfile $config
+      -extensions ext
       -out $"($public)-temp"
       -days $days)
     mv $"($ca_public).srl" $"($serial)-temp" 
@@ -769,6 +916,7 @@ def "main generate cockroach" [
   ca_private: path,
   public: path,
   private: path,
+  hosts: string,
   --renew
 ]: nothing -> nothing {
   rm -rf cockroach-temp
@@ -778,7 +926,7 @@ def "main generate cockroach" [
   cp $ca_public cockroach-temp/ca.crt
 
   (cockroach cert create-node
-    ...($in | split row " ")
+    ...($hosts | str trim | split row ",")
     --certs-dir=cockroach-temp
     --ca-key=cockroach-temp/ca.key)
 
@@ -838,14 +986,15 @@ def "main generate cockroach-client" [
 def "main generate env" [
   name: string,
   format: string,
-  --renew    
+  vars: string,
+  --renew
 ]: string -> nothing {
   let vars = if $format == "json" {
-    $in | from json
+    open --raw $vars | from json
   } else if $format == "yaml" {
-    $in | from yaml
+    open --raw $vars | from yaml
   } else if $format == "toml" {
-    $in | from toml
+    open --raw $vars | from toml
   }
 
   let vars = $vars
@@ -858,8 +1007,8 @@ def "main generate env" [
         }
         let value = $raw
           | str trim
-          | str replace -a "\n" "\\n"
           | str replace -a "\\" "\\\\"
+          | str replace -a "\n" "\\n"
           | str replace -a "\"" "\\\""
         {
           key: $pair.key,
@@ -882,17 +1031,18 @@ def "main generate env" [
 def "main generate moustache" [
   name: string,
   format: string,
+  variables_and_template: path,
   --renew    
 ]: string -> nothing {
-  let args = if $format == "json" {
-    $in | from json
+  let variables_and_template = if $format == "json" {
+    open --raw $variables_and_template | from json
   } else if $format == "yaml" {
-    $in | from yaml
+    open --raw $variables_and_template | from yaml
   } else if $format == "toml" {
-    $in | from toml
+    open --raw $variables_and_template | from toml
   }
 
-  let vars = $args.variables
+  let vars = $variables_and_template.variables
     | transpose key value
     | each { |pair|
         let raw = if ($pair.value | path exists) {
@@ -900,14 +1050,9 @@ def "main generate moustache" [
         } else {
           $pair.value
         }
-        let value = $raw
-          | str trim
-          | str replace -a "\n" "\\n"
-          | str replace -a "\\" "\\\\"
-          | str replace -a "\"" "\\\""
         {
           key: $pair.key,
-          value: $value
+          value: ($raw | escape string)
         }
       }
     | reduce --fold "" { |item, accumulator|
@@ -915,7 +1060,7 @@ def "main generate moustache" [
       }
     | str trim
 
-  $args.template | str trim | save -f $"($name)-temp"
+  $variables_and_template.template | str trim | save -f $"($name)-temp"
   let command = $"env ($vars) mo '($name)-temp' | collect | save -f ($name)-temp"
   nu -c $command
 
@@ -933,14 +1078,15 @@ def "main generate sops" [
   public: string,
   private: string,
   format: string,  
+  values: path,
   --renew
 ]: string -> nothing {
   let values = if $format == "json" {
-    $in | from json
+    open --raw $values | from json
   } else if $format == "yaml" {
-    $in | from yaml
+    open --raw $values | from yaml
   } else if $format == "toml" {
-    $in | from toml
+    open --raw $values | from toml
   }
 
   let values = $values
@@ -990,4 +1136,12 @@ def "decode if bytes" []: any -> string {
   } else {
     $in | decode
   }
+}
+
+def "escape string" []: string -> string {
+  $in
+    | str trim
+    | str replace -a "\\" "\\\\"
+    | str replace -a "\n" "\\n"
+    | str replace -a "\"" "\\\""
 }

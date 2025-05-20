@@ -1,4 +1,5 @@
 set windows-shell := ["nu.exe", "-c"]
+
 set shell := ["nu", "-c"]
 
 root := absolute_path('')
@@ -28,14 +29,13 @@ upgrade:
     nix flake update
 
 test-clean *args:
-    nu -c '{{ root }}/scripts/test.nu stop' {{ args }}
+    nu -c '{{ root }}/scripts/test.nu stop {{ args }}'
 
 test-all *args:
-    nu -c '{{ root }}/scripts/test.nu all "{{ root }}"' {{ args }}
+    nu -c '{{ root }}/scripts/test.nu all "{{ root }}" {{ args }}'
 
 test-one test *args:
-    nu -c '{{ root }}/scripts/test.nu one "{{ root }}" "{{ test }}"' {{ args }}
-    medusa export 'secret/{{ test }}'
+    nu -c '{{ root }}/scripts/test.nu one "{{ root }}" "{{ test }}" {{ args }}'
 
 docs:
     rm -rf '{{ root }}/artifacts'

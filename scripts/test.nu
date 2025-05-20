@@ -72,13 +72,20 @@ def "main stop" []: nothing -> nothing {
   }
 }
 
-def "main all" [root: string]: nothing -> nothing {
+def "main all" [root: string, --dev]: nothing -> nothing {
   main stop
   main start
   # TODO: fix bwrap setuid problem with cockroach
-  let tests = ls $"($root)/test"
-    | each { |test| $test.name | path basename }
-    | where $it != "cockroach"
+  let tests = if $dev {
+      # NOTE: dhparam takes a long time
+      ls $"($root)/test"
+        | each { |test| $test.name | path basename }
+        | where $it != "cockroach" and $it != "dhparam"
+    } else {
+      ls $"($root)/test"
+        | each { |test| $test.name | path basename }
+        | where $it != "cockroach"
+    }
   print $"Running tests: ($tests | str join ', ')"
   for test in $tests {
     print $"Running test: ($test)"
