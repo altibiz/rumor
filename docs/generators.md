@@ -3,6 +3,61 @@
 The following are all available generators in Rumor. The `type` corresponds to
 the `generator` field in the specification.
 
+## Copy
+
+Copies a file to another location.
+
+- Type: `copy`
+- Arguments:
+  - `from` (`path`): Path to the source file which to copy.
+  - `to` (`path`): Path to the destination file to copy to.
+  - `renew` (`boolean`, `= false`): Whether to renew the copied to file upon
+    subsequent generations.
+
+## Text
+
+Generates a plain text file.
+
+- Type: `text`
+- Arguments:
+  - `name` (`path`): Path to the text file.
+  - `text` (`string`): Contents of the text file.
+  - `renew` (`boolean`, `= false`): Whether to renew the text file upon
+    subsequent generations.
+
+## JSON
+
+Generates a JSON file.
+
+- Type: `json`
+- Arguments:
+  - `name` (`path`): Path to the JSON file.
+  - `value` (`object`): Contents of the JSON file.
+  - `renew` (`boolean`, `= false`): Whether to renew the JSON file upon
+    subsequent generations.
+
+## YAML
+
+Generates a YAML file.
+
+- Type: `json`
+- Arguments:
+  - `name` (`path`): Path to the YAML file.
+  - `value` (`object`): Contents of the YAML file.
+  - `renew` (`boolean`, `= false`): Whether to renew the YAML file upon
+    subsequent generations.
+
+## TOML
+
+Generates a TOML file.
+
+- Type: `json`
+- Arguments:
+  - `name` (`path`): Path to the TOML file.
+  - `value` (`object`): Contents of the TOML file.
+  - `renew` (`boolean`, `= false`): Whether to renew the TOML file upon
+    subsequent generations.
+
 ## Id
 
 Generates an alphanumeric identifier with `644` permissions.
@@ -82,7 +137,7 @@ and `644` permissions for the public part.
 
 - Type: `openssl-ca`
 - Arguments:
-  - `name` (`string`): Name (subject) of the CA.
+  - `config` (`path`): Path to the CA config.
   - `private` (`path`): Path where to save the private part.
   - `public` (`path`): Path where to save the public part.
   - `days` (`number`, `> 0`): For how many days will the CA be valid.
@@ -99,7 +154,9 @@ Generates an OpenSSL certificate with `600` permissions for the private part and
   - `ca_private` (`path`): Path to the OpenSSL CA private part.
   - `ca_public` (`path`): Path to the OpenSSL CA public part.
   - `serial` (`path`): Where to save the serial number.
-  - `name` (`string`): Name (subject) of the certificate.
+  - `config` (`path`): Path to the certificate config. `rumor` passes the
+    `-extensions` flag to OpenSSL to `ext`. Please set `ext` section to X.509 v3
+    extensions for the certificate.
   - `private` (`path`): Path where to save the private part.
   - `public` (`path`): Path where to save the public part.
   - `days` (`number`, `> 0`): For how many days will the certificate be valid.

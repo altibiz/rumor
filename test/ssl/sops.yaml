@@ -6,11 +6,19 @@ openssl-ca-priv: |-
   -----BEGIN PRIVATE KEY-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
   -----END PRIVATE KEY-----
-openssl-pub: |-
+openssl-server-pub: |-
   -----BEGIN CERTIFICATE-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
   -----END CERTIFICATE-----
-openssl-priv: |-
+openssl-server-priv: |-
+  -----BEGIN PRIVATE KEY-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END PRIVATE KEY-----
+openssl-client-pub: |-
+  -----BEGIN CERTIFICATE-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END CERTIFICATE-----
+openssl-client-priv: |-
   -----BEGIN PRIVATE KEY-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
   -----END PRIVATE KEY-----

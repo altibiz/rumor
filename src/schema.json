@@ -128,6 +128,11 @@
           "generator": {
             "type": "string",
             "enum": [
+              "copy",
+              "text",
+              "json",
+              "yaml",
+              "toml",
               "id",
               "key",
               "pin",
@@ -136,6 +141,7 @@
               "ssh-keygen",
               "openssl-ca",
               "openssl",
+              "openssl-dhparam",
               "nebula-ca",
               "nebula",
               "cockroach-ca",
@@ -149,6 +155,171 @@
           }
         },
         "allOf": [
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "copy"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Copy generator arguments",
+                  "required": ["from", "to"],
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "title": "From where to copy to copy the generation file"
+                    },
+                    "to": {
+                      "type": "string",
+                      "title": "Where to copy to copy the generation file"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the copied to file be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "text"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Text generator arguments",
+                  "required": ["name", "text"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Where to put the text file"
+                    },
+                    "text": {
+                      "type": "string",
+                      "title": "Text file contents"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the text file be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "json"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Json generator arguments",
+                  "required": ["name", "value"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Where to put the json file"
+                    },
+                    "value": {
+                      "type": ["array", "object"],
+                      "title": "Json file contents"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the json file be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "yaml"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Yaml generator arguments",
+                  "required": ["name", "value"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Where to put the yaml file"
+                    },
+                    "value": {
+                      "type": ["array", "object"],
+                      "title": "Yaml file contents"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the yaml file be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
+                  "const": "toml"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Toml generator arguments",
+                  "required": ["name", "value"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Where to put the toml file"
+                    },
+                    "value": {
+                      "type": "object",
+                      "title": "Toml file contents (NOTE: toml doesn't support top-level arrays)"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the toml file be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
           {
             "if": {
               "properties": {
@@ -373,11 +544,11 @@
                 "arguments": {
                   "type": "object",
                   "title": "Openssl CA generator arguments",
-                  "required": ["name", "public", "private"],
+                  "required": ["config", "public", "private"],
                   "properties": {
-                    "name": {
+                    "config": {
                       "type": "string",
-                      "title": "CA name"
+                      "title": "Path to the CA config."
                     },
                     "public": {
                       "type": "string",
@@ -405,6 +576,35 @@
             "if": {
               "properties": {
                 "generator": {
+                  "const": "openssl-dhparam"
+                }
+              }
+            },
+            "then": {
+              "required": ["arguments"],
+              "properties": {
+                "arguments": {
+                  "type": "object",
+                  "title": "Openssl dhparam arguments",
+                  "required": ["name"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "title": "Name of the dhparam file"
+                    },
+                    "renew": {
+                      "type": "boolean",
+                      "title": "Should the dhparam be renewed upon subsequent generations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "generator": {
                   "const": "openssl"
                 }
               }
@@ -419,7 +619,7 @@
                     "ca_public",
                     "ca_private",
                     "serial",
-                    "name",
+                    "config",
                     "public",
                     "private"
                   ],
@@ -436,9 +636,9 @@
                       "type": "string",
                       "title": "Where to save the serial number"
                     },
-                    "name": {
+                    "config": {
                       "type": "string",
-                      "title": "Certificate name"
+                      "title": "Path to the certificate config."
                     },
                     "public": {
                       "type": "string",

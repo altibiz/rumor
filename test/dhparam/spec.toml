@@ -1,0 +1,31 @@
+#:schema ../../src/schema.json
+[[imports]]
+importer = "vault"
+arguments.path = "secret/ssl"
+arguments.allow_fail = true
+
+[[exports]]
+exporter = "vault"
+arguments.path = "secret/ssl"
+
+[[generations]]
+generator = "openssl-dhparam"
+arguments.name = "openssl-dhparam"
+
+[[generations]]
+generator = "age"
+
+[generations.arguments]
+public = "age.txt.pub"
+private = "age.txt"
+
+[[generations]]
+generator = "sops"
+
+[generations.arguments]
+age = "age.txt.pub"
+public = "sops.yaml.pub"
+private = "sops.yaml"
+
+[generations.arguments.secrets]
+openssl-dhparam = "openssl-dhparam"

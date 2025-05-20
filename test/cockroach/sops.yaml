@@ -1,3 +1,7 @@
+cockroach-ca-pub: |-
+  -----BEGIN CERTIFICATE-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END CERTIFICATE-----
 cockroach-ca-priv: |-
   -----BEGIN RSA PRIVATE KEY-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}

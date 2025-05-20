@@ -33,3 +33,5 @@ words:
   - cockroachdb
   - bwrap
   - setuid
+  - extfile
+  - keyid

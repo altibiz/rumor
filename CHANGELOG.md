@@ -7,6 +7,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - 2025-05-20
+
+### Added
+
+- `copy`, `text`, `json`, `toml`, `yaml`, `openssl-dhparam` generators
+- `config` argument to `openssl` and `openssl-ca` generators
+
+### Changed
+
+- Script commands take not CLI-friendly arguments from files and not from stdin
+
+### Removed
+
+- `name` argument for `openssl` and `openssl-ca` generators in favor of the new
+  `config` argument
+
 ## [1.3.1] - 2025-05-19
 
 ### Changed
@@ -14,6 +30,7 @@ and adheres to [Semantic Versioning](https://semver.org/).
 - Test environment variable fixes
 - Vault file importer fix when the path exists but file doesn't with
   `allow_fail`
+- Small `cockroach` test fix
 
 ## [1.3.0] - 2025-05-18
 
@@ -65,6 +82,7 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - initial script, package, documentation and tests
 
+[2.0.0]: https://github.com/altibiz/rumor/compare/1.3.1...2.0.0
 [1.3.1]: https://github.com/altibiz/rumor/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/altibiz/rumor/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/altibiz/rumor/compare/1.1.3...1.2.0
