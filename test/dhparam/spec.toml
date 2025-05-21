@@ -1,12 +1,12 @@
 #:schema ../../src/schema.json
 [[imports]]
 importer = "vault"
-arguments.path = "secret/ssl"
+arguments.path = "secret/dhparam"
 arguments.allow_fail = true
 
 [[exports]]
 exporter = "vault"
-arguments.path = "secret/ssl"
+arguments.path = "secret/dhparam"
 
 [[generations]]
 generator = "openssl-dhparam"

@@ -128,6 +128,10 @@ def "test" [root: string, test: string]: nothing -> nothing {
     exit 1
   }
 
+  print $"Rumor success!"
+  print $"Stdout:\n($result.stdout | decode if bytes)"
+  print $"Stderr:\n($result.stderr | decode if bytes)"
+
   let private_file = $"($root)/test/($test)/artifacts/sops.yaml"
   if (not ($private_file | path exists)) {
     print $"Secrets not generated for test '($test)'"

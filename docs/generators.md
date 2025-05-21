@@ -144,6 +144,17 @@ and `644` permissions for the public part.
   - `renew` (`boolean`, `= false`): Whether to renew the CA upon subsequent
     generations.
 
+## OpenSSL Diffie-Hellman parameters
+
+Generates a OpenSSL Diffie-Hellman parameters file with `600` permissions and
+2048 bits.
+
+- Type: `openssl-dhparam`
+- Arguments:
+  - `name` (`path`): Path to the file to be generated.
+  - `renew` (`boolean`, `= false`): Whether to renew the parameters file upon
+    subsequent generations.
+
 ## OpenSSL certificate
 
 Generates an OpenSSL certificate with `600` permissions for the private part and
