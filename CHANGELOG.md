@@ -7,6 +7,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.0.1] - 2025-05-21
+
+## Added
+
+- docs for `openssl-dhparam` generator
+
+## Changed
+
+- fix OpenSSL serial generation in certain scenarios
+- fix `rumor` not exporting anything
+- fix `dhparam` test wrong vault path
+
 ## [2.0.0] - 2025-05-20
 
 ### Added
@@ -82,6 +94,7 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - initial script, package, documentation and tests
 
+[2.0.1]: https://github.com/altibiz/rumor/compare/2.0.0...2.0.1
 [2.0.0]: https://github.com/altibiz/rumor/compare/1.3.1...2.0.0
 [1.3.1]: https://github.com/altibiz/rumor/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/altibiz/rumor/compare/1.2.0...1.3.0

@@ -327,6 +327,8 @@ def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
       $command = $command + $" ($export.arguments.from)"
       $command = $command + $" ($export.arguments.to)"
     }
+
+    nu -c $command
   }
 
   if not $keep {
@@ -784,11 +786,11 @@ def "main generate openssl" [
       -CA $ca_public
       -CAkey $ca_private
       -CAcreateserial
+      -CAserial $"($serial)-temp"
       -extfile $config
       -extensions ext
       -out $"($public)-temp"
       -days $days)
-    mv $"($ca_public).srl" $"($serial)-temp" 
   }
 
   rm -f $"($private)-temp.req"

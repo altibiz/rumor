@@ -35,6 +35,7 @@ test-all *args:
 
 test-one test *args:
     nu -c '{{ root }}/scripts/test.nu one "{{ root }}" "{{ test }}" {{ args }}'
+    medusa export 'secret/{{ test }}'
 
 docs:
     rm -rf '{{ root }}/artifacts'
