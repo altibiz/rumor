@@ -36,3 +36,5 @@ words:
   - extfile
   - keyid
   - diffie
+  - pkeyopt
+  - paramgen
