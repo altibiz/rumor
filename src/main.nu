@@ -710,7 +710,9 @@ def "main generate openssl-ca" [
   --days: int = 3650,
   --renew
 ]: nothing -> nothing {
-  (openssl genpkey -algorithm ED25519
+  (openssl genpkey
+    -algorithm EC
+    -pkeyopt ec_paramgen_curve:prime256v1
     -out $"($private)-temp")
 
   (openssl req -x509
@@ -761,7 +763,9 @@ def "main generate openssl" [
   --days: int = 3650
   --renew
 ]: nothing -> nothing {
-  (openssl genpkey -algorithm ED25519
+  (openssl genpkey
+    -algorithm EC
+    -pkeyopt ec_paramgen_curve:prime256v1
     -out $"($private)-temp")
 
   (openssl req -new

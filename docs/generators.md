@@ -133,7 +133,9 @@ permissions for the public part.
 ## OpenSSL CA
 
 Generates a self-signed OpenSSL CA with `600` permissions for the private part
-and `644` permissions for the public part.
+and `644` permissions for the public part. Uses the ECDSA P-256 (prime256v1)
+algorithm as that is the recommended algorithm
+[by the mozilla wiki](https://wiki.mozilla.org/Security/Server_Side_TLS).
 
 - Type: `openssl-ca`
 - Arguments:
@@ -158,7 +160,9 @@ Generates a OpenSSL Diffie-Hellman parameters file with `600` permissions and
 ## OpenSSL certificate
 
 Generates an OpenSSL certificate with `600` permissions for the private part and
-`644` permissions for the public part.
+`644` permissions for the public part. Uses the ECDSA P-256 (prime256v1)
+algorithm as that is the recommended algorithm
+[by the mozilla wiki](https://wiki.mozilla.org/Security/Server_Side_TLS).
 
 - Type: `openssl`
 - Arguments:
