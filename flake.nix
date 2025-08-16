@@ -5,7 +5,8 @@
     perch.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { perch, ... } @inputs:
+  outputs =
+    { perch, ... }@inputs:
     perch.lib.flake.make {
       inherit inputs;
       root = ./.;

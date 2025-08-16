@@ -1,7 +1,7 @@
 #:schema ../../src/schema.json
 [[imports]]
 importer = "vault"
-arguments.path = "secret/raw"
+arguments.path = "secret/data"
 arguments.allow_fail = true
 
 [[imports]]
@@ -12,7 +12,7 @@ arguments.allow_fail = true
 
 [[exports]]
 exporter = "vault"
-arguments.path = "secret/raw"
+arguments.path = "secret/data"
 
 [[exports]]
 exporter = "vault-file"
@@ -50,7 +50,7 @@ arguments.value = { key = "value" }
 renew = true
 
 [[generations]]
-generator = "age"
+generator = "age-key"
 
 [generations.arguments]
 public = "age.txt.pub"

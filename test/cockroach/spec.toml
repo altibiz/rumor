@@ -17,7 +17,7 @@ public = "cockroach-ca-pub"
 private = "cockroach-ca-priv"
 
 [[generations]]
-generator = "cockroach"
+generator = "cockroach-node-cert"
 
 [generations.arguments]
 ca_public = "cockroach-ca-pub"
@@ -28,7 +28,7 @@ private = "cockroach-priv"
 renew = true
 
 [[generations]]
-generator = "cockroach-client"
+generator = "cockroach-client-cert"
 
 [generations.arguments]
 ca_public = "cockroach-ca-pub"
@@ -39,7 +39,7 @@ user = "client1"
 renew = true
 
 [[generations]]
-generator = "cockroach-client"
+generator = "cockroach-client-cert"
 
 [generations.arguments]
 ca_public = "cockroach-ca-pub"
@@ -50,7 +50,7 @@ user = "client2"
 renew = true
 
 [[generations]]
-generator = "age"
+generator = "age-key"
 
 [generations.arguments]
 public = "age.txt.pub"

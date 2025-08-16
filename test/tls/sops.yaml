@@ -1,40 +1,48 @@
-openssl-ca-pub: |-
+tls-ca-pub: |-
   -----BEGIN CERTIFICATE-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
   -----END CERTIFICATE-----
-openssl-ca-priv: |-
+tls-ca-priv: |-
   -----BEGIN PRIVATE KEY-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
   -----END PRIVATE KEY-----
-openssl-server-pub: |-
+tls-server-pub: |-
   -----BEGIN CERTIFICATE-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
   -----END CERTIFICATE-----
-openssl-server-priv: |-
+tls-server-priv: |-
   -----BEGIN PRIVATE KEY-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
   -----END PRIVATE KEY-----
-openssl-client-pub: |-
+tls-client-pub: |-
   -----BEGIN CERTIFICATE-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
   -----END CERTIFICATE-----
-openssl-client-priv: |-
+tls-client-priv: |-
   -----BEGIN PRIVATE KEY-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
   -----END PRIVATE KEY-----
-nebula-ca-pub: |-
-  -----BEGIN NEBULA CERTIFICATE-----
+tls-rsa-ca-pub: |-
+  -----BEGIN CERTIFICATE-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
-  -----END NEBULA CERTIFICATE-----
-nebula-ca-priv: |-
-  -----BEGIN NEBULA ED25519 PRIVATE KEY-----
+  -----END CERTIFICATE-----
+tls-rsa-ca-priv: |-
+  -----BEGIN PRIVATE KEY-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
-  -----END NEBULA ED25519 PRIVATE KEY-----
-nebula-pub: |-
-  -----BEGIN NEBULA CERTIFICATE-----
+  -----END PRIVATE KEY-----
+tls-rsa-server-pub: |-
+  -----BEGIN CERTIFICATE-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
-  -----END NEBULA CERTIFICATE-----
-nebula-priv: |-
-  -----BEGIN NEBULA X25519 PRIVATE KEY-----
+  -----END CERTIFICATE-----
+tls-rsa-server-priv: |-
+  -----BEGIN PRIVATE KEY-----
   ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
-  -----END NEBULA X25519 PRIVATE KEY-----
+  -----END PRIVATE KEY-----
+tls-rsa-client-pub: |-
+  -----BEGIN CERTIFICATE-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END CERTIFICATE-----
+tls-rsa-client-priv: |-
+  -----BEGIN PRIVATE KEY-----
+  ([A-Za-z0-9+/=]{64}\n)*[A-Za-z0-9+/=]{1,64}
+  -----END PRIVATE KEY-----

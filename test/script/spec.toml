@@ -1,16 +1,27 @@
 #:schema ../../src/schema.json
 [[imports]]
 importer = "vault"
-arguments.path = "secret/dhparam"
+arguments.path = "secret/script"
 arguments.allow_fail = true
 
 [[exports]]
 exporter = "vault"
-arguments.path = "secret/dhparam"
+arguments.path = "secret/script"
 
 [[generations]]
-generator = "tls-dhparam"
-arguments.name = "openssl-dhparam"
+generator = "script"
+arguments.name = "key-script"
+arguments.text = '''
+def main [renew: bool]: nothing -> nothing {
+  let key = (openssl genpkey -algorithm RSA)
+  if $renew {
+    $key | save -f "key"
+  } else {
+    $key | try { save "key" }
+  }
+  chmod 600 "key"
+}
+'''
 
 [[generations]]
 generator = "age-key"
@@ -26,6 +37,8 @@ generator = "sops"
 age = "age.txt.pub"
 public = "sops.yaml.pub"
 private = "sops.yaml"
+renew = true
 
 [generations.arguments.secrets]
-openssl-dhparam = "openssl-dhparam"
+key-script = "key-script"
+key = "key"

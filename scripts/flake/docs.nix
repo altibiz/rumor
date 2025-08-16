@@ -1,13 +1,10 @@
-{ pkgs, ... }:
+{ self, pkgs, ... }:
 
 {
   integrate.devShell.devShell = pkgs.mkShell {
-    packages = with pkgs; [
-      # scripts
-      nushell
-      just
+    inputsFrom = [ (self.lib.shells.mkShell pkgs) ];
 
-      # documentation
+    packages = with pkgs; [
       mdbook
     ];
   };

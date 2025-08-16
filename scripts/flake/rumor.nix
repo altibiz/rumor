@@ -1,36 +1,48 @@
-{ self, pkgs, lib, ... }:
+{
+  self,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
-  buildInputs = with pkgs; [
-    nushell
-    nlohmann_json_schema_validator
-    age
-    sops
-    nebula
-    openssl
-    mkpasswd
-    mo
-    openssh
-    vault
-    vault-medusa
-    coreutils
-  ] ++ (lib.optionals pkgs.hostPlatform.isLinux [
-    cockroachdb
-  ]);
+  buildInputs = self.lib.rumor.mkBuildInputs pkgs;
 
-  shebang =
-    ''#!${pkgs.nushell}/bin/nu --stdin''
-    + ''\n$env.PATH = "${lib.makeBinPath buildInputs}"'';
+  shebang = ''#!${pkgs.nushell}/bin/nu --stdin'' + ''\n$env.PATH = "${lib.makeBinPath buildInputs}"'';
+
+  version = "3.0.0";
 in
 {
+  flake.lib.rumor.mkBuildInputs =
+    pkgs: with pkgs; [
+      nushell
+      nlohmann_json_schema_validator
+      age
+      sops
+      nebula
+      openssl
+      mkpasswd
+      mo
+      openssh
+      vault
+      vault-medusa
+      coreutils
+      libargon2
+      ssss
+      bubblewrap
+      util-linux
+      systemd
+      cockroachdb
+    ];
+
+  seal.defaults.package = "rumor";
   integrate.nixpkgs.config = {
     allowUnfree = true;
   };
-
-  seal.defaults.package = "rumor";
   integrate.package.package = pkgs.stdenvNoCC.mkDerivation {
+    inherit version;
+
     pname = "rumor";
-    version = "1.0.0";
 
     src = self;
 
@@ -49,6 +61,9 @@ in
       sed \
         -i 's|\$"(\$env.FILE_PWD)/main.nu"'"|\"$out/bin/rumor\"|g" \
         ./src/main.nu
+      sed \
+        -i "s|^\\s*let version = \".*\"|let version = \"${version}\"|" \
+        src/main.nu
 
       runHook postPatch
     '';

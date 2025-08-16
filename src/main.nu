@@ -1,356 +1,492 @@
 #!/usr/bin/env -S nu --stdin
 
-# TODO: better help
+###############################################################################
+# CONSTANTS
+###############################################################################
 
-use std
-
-let schema = $"($env.FILE_PWD)/schema.json"
 let main = $"($env.FILE_PWD)/main.nu"
 
+let schema = $"($env.FILE_PWD)/schema.json"
+
+let version = "3.0.0-dev"
+
+let tools = [
+  nu
+  chmod # NOTE: not a nushell builtin - need from coreutils
+  age-keygen
+  sops
+  nebula-cert
+  openssl
+  mkpasswd
+  mo
+  dirname # NOTE: used by mo
+  cat # NOTE: used by mo
+  ssh-keygen
+  vault
+  medusa
+  argon2
+  ssss-combine
+  ssss-split
+  cockroach
+  bwrap
+  prlimit
+  systemd-run
+]
+
+let tmp_suffix = ".tmp"
+
+let ip_regex = "(^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}$)"
+
+let tls_algorithm_args = [
+  EC
+  ec_paramgen_curve:prime256v1
+]
+
+let tls_rsa_algorithm_args = [
+  RSA
+  rsa_keygen_bits:4096
+]
+
+let timestamp_format = "%+"
+
+let vault_timestamp_format = "%Y%m%d%H%M%S"
+
+###############################################################################
+# TOP-LEVEL INTERFACE
+###############################################################################
+
+# Rumor secret generation script
+def "main" []: nothing -> nothing {
+  nu -c $"($main) -h"
+}
+
 # run rumor with specification from path
-def "main" [
+def "main from-path" [
   # path to specification
   spec: path,
-  # stay in current working directory
+  # stay in current working directory (does nothing unless --nosandbox specified)
   --stay,
-  # don't remove the generated secrets
-  --keep
+  # don't remove the generated secrets (does nothing unless --nosandbox specified)
+  --keep,
+  # don't run exports
+  --dry-run,
+  # allow script generator
+  --allow-script,
+  # maximum allowed imports
+  --max-imports: int = 1024,
+  # maximum allowed generations
+  --max-generations: int = 1024,
+  # maximum allowed exports
+  --max-exports: int = 1024,
+  # maximum allowed specification size in bytes
+  --max-specification-size: int = (1024 * 1024),
+  # don't use sandbox while running
+  --nosandbox,
+  # additional read-only bind mounts to add to bubblewrap - useful for copy imports (does nothing with --nosandbox)
+  --ro-binds: list<string> = [],
+  # additional bind mounts to add to bubblewrap - useful for copy exports (does nothing with --nosandbox)
+  --binds: list<string> = [],
+  # list of tool binaries that rumor is allowed to access via PATH (does nothing with --nosandbox)
+  --tools: list<string> = [],
+  # allow network while running (does nothing with --nosandbox)
+  --allow-net,
+  # maximum allowed runtime in seconds (does nothing with --nosandbox)
+  --timeout: int = (60 * 60),
+  # maximum allowed memory while running in bytes (does nothing with --nosandbox)
+  --max-mem: int = (1024 * 1024 * 128),
+  # maximum allowed tasks while running (does nothing with --nosandbox)
+  --max-tasks: int = 64,
+  # maximum allowed generated file size while running in bytes (does nothing with --nosandbox)
+  --max-file-size: int = (1024 * 1024 * 128),
+  # maximum allowed open files while running (does nothing with --nosandbox)
+  --max-open-files: int = 1024,
+  # select manifest format from 'json', 'yaml' and 'toml'
+  --manifest-format: string = "json",
+  # turn on logging from modules
+  --verbose
+  # turn on logging from tools (implies verbose)
+  --very-verbose
 ]: nothing -> nothing {
-  let specification = open $spec
-  let validation_result = try {
-   $specification
-      | to json
-      | json-schema-validate $schema
-      | complete
+  if $verbose or $very_verbose {
+    export-env { $env.__RUMOR_VERBOSE = "1" }
   }
-  if ($validation_result.exit_code != 0) {
-    print --stderr $"Specification '($spec)' schema invalid"
-    print --stderr $"Reason:\n($validation_result.stderr)"
+  if $very_verbose {
+    export-env { $env.__RUMOR_VERY_VERBOSE = "1" }
+  }
+
+  let specification_format = rumor format detect $spec
+  if ($specification_format | is-empty) {
+    rumor log --error "Unknown specification format."
     exit 1
   }
 
-  run $specification $stay $keep
+  let script = open --raw $main
+  let schema_string = open --raw $schema
+  let commandline = commandline
+  let specification_string = open --raw $spec
+  let specification = $specification_string | rumor format deserialize $specification_format
+  let parsed_commandline = {
+    spec: $spec
+    stay: $stay
+    keep: $keep
+    dry_run: $dry_run
+    allow_script: $allow_script
+    max_imports: $max_imports
+    max_generations: $max_generations
+    max_exports: $max_exports
+    max_specification_size: $max_specification_size
+    nosandbox: $nosandbox
+    ro_binds: $ro_binds
+    binds: $binds
+    tools: $tools
+    allow_net: $allow_net
+    timeout: $timeout
+    max_mem: $max_mem
+    max_tasks: $max_tasks
+    max_file_size: $max_file_size
+    max_open_files: $max_open_files
+    manifest_format: $manifest_format
+    verbose: $verbose
+    very_verbose: $very_verbose
+  }
+
+  (rumor validate
+    $script
+    $schema_string
+    $commandline
+    $parsed_commandline
+    $specification
+    $specification_format
+    $specification_string)
 }
 
 # run rumor with specification from stdin
-def "main stdin" [
+def "main from-stdin" [
   # format of the specification
   format: string,
-  # stay in current working directory
+  # stay in current working directory (does nothing unless --nosandbox specified)
   --stay,
-  # don't remove the generated secrets
-  --keep
+  # don't remove the generated secrets (does nothing unless --nosandbox specified)
+  --keep,
+  # don't run exports
+  --dry-run,
+  # allow script generator
+  --allow-script,
+  # maximum allowed imports
+  --max-imports: int = 1024,
+  # maximum allowed generations
+  --max-generations: int = 1024,
+  # maximum allowed exports
+  --max-exports: int = 1024,
+  # maximum allowed specification size in bytes
+  --max-specification-size: int = (1024 * 1024),
+  # don't use sandbox while running
+  --nosandbox,
+  # additional read-only bind mounts to add to bubblewrap - useful for copy imports (does nothing with --nosandbox)
+  --ro-binds: list<string> = [],
+  # additional bind mounts to add to bubblewrap - useful for copy exports (does nothing with --nosandbox)
+  --binds: list<string> = [],
+  # additional list of tool binaries that rumor is allowed to access via PATH (does nothing with --nosandbox)
+  --tools: list<string> = [],
+  # allow network while running (does nothing with --nosandbox)
+  --allow-net,
+  # maximum allowed runtime in seconds (does nothing with --nosandbox)
+  --timeout: int = (1000 * 60 * 60),
+  # maximum allowed memory while running in bytes (does nothing with --nosandbox)
+  --max-mem: int = (1024 * 1024 * 128),
+  # maximum allowed tasks while running (does nothing with --nosandbox)
+  --max-tasks: int = 64,
+  # maximum allowed generated file size while running in bytes (does nothing with --nosandbox)
+  --max-file-size: int = (1024 * 1024 * 128),
+  # maximum allowed open files while running (does nothing with --nosandbox)
+  --max-open-files: int = 1024,
+  # select manifest format from 'json', 'yaml' and 'toml'
+  --manifest-format: string = "json",
+  # turn on logging from tools
+  --verbose
+  # turn on logging from tools (implies verbose)
+  --very-verbose
 ]: string -> nothing {
-  let specification = if $format == "json" {
-    $in | from json
-  } else if $format == "yaml" {
-    $in | from yaml
-  } else if $format == "toml" {
-    $in | from toml
+  if $verbose or $very_verbose {
+    export-env { $env.__RUMOR_VERBOSE = "1" }
+  }
+  if $very_verbose {
+    export-env { $env.__RUMOR_VERY_VERBOSE = "1" }
   }
 
-  let validation_result = try {
-   $specification
-      | to json
-      | json-schema-validate $schema
-      | complete
-  }
-  if ($validation_result.exit_code != 0) {
-    print --stderr $"Stdin specification schema invalid"
-    print --stderr $"Reason:\n($validation_result.stderr)"
+  let specification_format = $format
+  if not (rumor format valid $specification_format) {
+    rumor log --error "Unknown specification format."
     exit 1
   }
 
-  run $specification $stay $keep
+  let script = open --raw $main
+  let schema_string = open --raw $schema
+  let commandline = commandline
+  let specification_string = $in
+  let specification = $specification_string | rumor format deserialize $specification_format
+  let parsed_commandline = {
+    format: $format
+    stay: $stay
+    keep: $keep
+    dry_run: $dry_run
+    allow_script: $allow_script
+    max_imports: $max_imports
+    max_generations: $max_generations
+    max_exports: $max_exports
+    max_specification_size: $max_specification_size
+    nosandbox: $nosandbox
+    ro_binds: $ro_binds
+    binds: $binds
+    tools: $tools
+    allow_net: $allow_net
+    timeout: $timeout
+    max_mem: $max_mem
+    max_tasks: $max_tasks
+    max_file_size: $max_file_size
+    max_open_files: $max_open_files
+    manifest_format: $manifest_format
+    verbose: $verbose
+    very_verbose: $very_verbose
+  }
+
+  (rumor validate
+    $script
+    $schema_string
+    $commandline
+    $parsed_commandline
+    $specification
+    $specification_format
+    $specification_string)
 }
 
-def "run" [specification, stay: bool, keep: bool]: nothing -> nothing {
-  if not $stay {
-    cd (mktemp -d)
+# run rumor from input manifest - USE ONLY FOR DEBUGGING/TESTING!
+def "main from-manifest" [
+  # path to the input manifest
+  input_manifest_path: string
+]: nothing -> nothing {
+  if ($env.__RUMOR_SANDBOX? | is-not-empty) {
+    rumor run $input_manifest_path
+    return
   }
 
-  for import in $specification.imports {
-    mut command = $"($main) import ($import.importer)"
+  let input_manifest_format = rumor format detect $input_manifest_path
+  let input_manifest = rumor format read $input_manifest_path
+  let x = $input_manifest.input.parsed_commandline | from json
+  let nosandbox = $x.nosandbox
+  let verbose = $x.verbose
+  let very_verbose = $x.very_verbose
 
-    if ($import.importer == "vault") {
-      $command = $command + $" ($import.arguments.path)"
-      if (($import.arguments | get --ignore-errors allow_fail) != null
-        and $import.arguments.allow_fail) {
-        $command = $command + $" --allow-fail"
-      }
-    } else if ($import.importer == "vault-file") {
-      $command = $command + $" ($import.arguments.path)"
-      $command = $command + $" ($import.arguments.file)"
-      if (($import.arguments | get --ignore-errors allow_fail) != null
-        and $import.arguments.allow_fail) {
-        $command = $command + $" --allow-fail"
-      }
-    } else if ($import.importer == "copy") {
-      $command = $command + $" ($import.arguments.from)"
-      $command = $command + $" ($import.arguments.to)"
-      if (($import.arguments | get --ignore-errors allow_fail) != null
-        and $import.arguments.allow_fail) {
-        $command = $command + $" --allow-fail"
-      }
+  if $verbose or $very_verbose {
+    export-env { $env.__RUMOR_VERBOSE = "1" }
+  }
+  if $very_verbose {
+    export-env { $env.__RUMOR_VERY_VERBOSE = "1" }
+  }
+
+  if $nosandbox {
+    if not $x.stay {
+      cd (rumor mktemp --directory work)
     }
-
-    nu -c $command
-  }
-
-  for generation in $specification.generations {
-    mut command = $"($main) generate ($generation.generator)"
-    if $generation.generator == "copy" {
-      $command = $command + $" ($generation.arguments.from)" 
-      $command = $command + $" ($generation.arguments.to)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "text" {
-      $command = $command + $" ($generation.arguments.name)" 
-      $command = $command + $" \"($generation.arguments.text | escape string)\"" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "json" {
-      $command = $command + $" ($generation.arguments.name)" 
-      let json = $"($generation.arguments.name)-json"
-      $generation.arguments.value | to json | save -f $json
-      $command = $command + $" json" 
-      $command = $command + $" ($json)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "yaml" {
-      $command = $command + $" ($generation.arguments.name)" 
-      let yaml = $"($generation.arguments.name)-yaml"
-      $generation.arguments.value | to yaml | save -f $yaml
-      $command = $command + $" yaml" 
-      $command = $command + $" ($yaml)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "toml" {
-      $command = $command + $" ($generation.arguments.name)" 
-      let toml = $"($generation.arguments.name)-toml"
-      $generation.arguments.value | to toml | save -f $toml
-      $command = $command + $" toml" 
-      $command = $command + $" ($toml)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "id" {
-      $command = $command + $" ($generation.arguments.name)" 
-      if (($generation.arguments | get --ignore-errors length) != null) {
-        $command = $command + $" --length ($generation.arguments.length)"
-      }
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "key" {
-      $command = $command + $" ($generation.arguments.name)" 
-      if (($generation.arguments | get --ignore-errors length) != null) {
-        $command = $command + $" --length ($generation.arguments.length)"
-      }
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "pin" {
-      $command = $command + $" ($generation.arguments.name)" 
-      if (($generation.arguments | get --ignore-errors length) != null) {
-        $command = $command + $" --length ($generation.arguments.length)"
-      }
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "mkpasswd" {
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      if (($generation.arguments | get --ignore-errors length) != null) {
-        $command = $command + $" --length ($generation.arguments.length)"
-      }
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "age" {
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "ssh-keygen" {
-      $command = $command + $" ($generation.arguments.name)" 
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "nebula-ca" {
-      $command = $command + $" ($generation.arguments.name)" 
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      if (($generation.arguments | get --ignore-errors days) != null) {
-        $command = $command + $" --days ($generation.arguments.days)"
-      }
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "nebula" {
-      $command = $command + $" ($generation.arguments.ca_public)" 
-      $command = $command + $" ($generation.arguments.ca_private)" 
-      $command = $command + $" ($generation.arguments.name)" 
-      $command = $command + $" ($generation.arguments.ip)" 
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "cockroach-ca" {
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "cockroach" {
-      $command = $command + $" ($generation.arguments.ca_public)" 
-      $command = $command + $" ($generation.arguments.ca_private)" 
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      $command = $command + $" ($generation.arguments.hosts | str join ",")"
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "cockroach-client" {
-      $command = $command + $" ($generation.arguments.ca_public)" 
-      $command = $command + $" ($generation.arguments.ca_private)" 
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      $command = $command + $" ($generation.arguments.user)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "openssl-ca" {
-      $command = $command + $" ($generation.arguments.config)" 
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      if (($generation.arguments | get --ignore-errors days) != null) {
-        $command = $command + $" --days ($generation.arguments.days)"
-      }
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "openssl-dhparam" {
-      $command = $command + $" ($generation.arguments.name)" 
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "openssl" {
-      $command = $command + $" ($generation.arguments.ca_public)" 
-      $command = $command + $" ($generation.arguments.ca_private)" 
-      $command = $command + $" ($generation.arguments.serial)" 
-      $command = $command + $" ($generation.arguments.config)" 
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      if (($generation.arguments | get --ignore-errors days) != null) {
-        $command = $command + $" --days ($generation.arguments.days)"
-      }
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "env" {
-      $command = $command + $" ($generation.arguments.name)" 
-      $command = $command + $" json" 
-      let variables = $"($generation.arguments.name)-variables"
-      $generation.arguments.variables | to json | save -f $variables
-      $command = $command + $" ($variables)"
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "moustache" {
-      $command = $command + $" ($generation.arguments.name)" 
-      $command = $command + $" json" 
-      let variables_and_template = $"($generation.arguments.name)-variables-and-template"
-      {
-        variables: $generation.arguments.variables
-        template: $generation.arguments.template
-      } | to json | save -f $variables_and_template
-      $command = $command + $" ($variables_and_template)"
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
-    } else if $generation.generator == "sops" {
-      $command = $command + $" ($generation.arguments.age)" 
-      $command = $command + $" ($generation.arguments.public)" 
-      $command = $command + $" ($generation.arguments.private)" 
-      $command = $command + $" json" 
-      let secrets = $"($generation.arguments.private)-secrets"
-      $generation.arguments.secrets | to json | save -f $secrets
-      $command = $command + $" ($secrets)"
-      if (($generation.arguments | get --ignore-errors renew) != null
-        and $generation.arguments.renew) {
-        $command = $command + $" --renew"
-      }
+    let work = pwd
+    rumor run $input_manifest_path
+    if not $x.stay and not ($work | str starts-with "/tmp/rumor-") {
+      rumor log --error "Working directory variable got clobbered."
+      exit 1
     }
-
-    nu -c $command
-  }
-
-  for export in $specification.exports {
-    mut command = $"($main) export ($export.exporter)"
-
-    if ($export.exporter == "vault") {
-      $command = $command + $" ($export.arguments.path)"
-    } else if ($export.exporter == "vault-file") {
-      $command = $command + $" ($export.arguments.path)"
-      $command = $command + $" ($export.arguments.file)"
-    } else if ($export.exporter == "copy") {
-      $command = $command + $" ($export.arguments.from)"
-      $command = $command + $" ($export.arguments.to)"
+    if not $x.keep and not ((pwd) == $work) {
+      rumor log --error "Unexpectedly moved out of target directory."
+      exit 1
     }
-
-    nu -c $command
+    if not $x.keep {
+      rumor purge workdir
+    }
+    return
   }
 
-  if not $keep {
-    rm -rf ./*
+  mut systemd_options = []
+  mut bwrap_options = []
+  mut prlimit_options = []
+  mut nu_options = []
+
+  $bwrap_options ++= [
+    --clearenv
+    --setenv __RUMOR_SANDBOX "1"
+  ]
+
+  if $verbose or $very_verbose {
+    $bwrap_options ++= [
+      --setenv __RUMOR_VERBOSE "1"
+    ]
+  }
+  if $very_verbose {
+    $bwrap_options ++= [
+      --setenv __RUMOR_VERY_VERBOSE "1"
+    ]
+  }
+
+  let manifest_inside = $"/input/manifest.($input_manifest_format)"
+  let main_tmp = rumor mktemp --suffix .nu main
+  cp -f $main $main_tmp
+  let main_inside = $"/input/main.nu"
+  $bwrap_options ++= [
+    --dir /input
+    --ro-bind $input_manifest_path $manifest_inside
+    --ro-bind $main_tmp $main_inside
+  ]
+  $nu_options ++= [
+    $main_inside
+    from-manifest
+    $manifest_inside
+  ]
+
+  $bwrap_options ++= [
+    --tmpfs /work
+    --chdir /work
+  ]
+
+  $bwrap_options ++= ($x.ro_binds
+    | each {
+        let absolute = realpath $in
+        [ --ro-bind $absolute $absolute ]
+      }
+    | flatten)
+  $systemd_options ++= ($x.binds
+    | each {
+        let absolute = realpath $in
+        [ -p ReadWritePaths=($absolute) ]
+      }
+    | flatten)
+  $bwrap_options ++= ($x.binds
+    | each {
+        let absolute = realpath $in
+        [ --bind $absolute $absolute ]
+      }
+    | flatten)
+
+  let tool_path = rumor mktemp --directory tools
+  ($x.tools ++ $tools) | each {
+    let absolute = realpath (which $in).0.path
+    let link = [ $tool_path $in ] | path join
+    ln -s $absolute $link
+  }
+  $bwrap_options ++= [ --ro-bind $tool_path /tools ]
+  $bwrap_options ++= [
+    --setenv PATH /tools
+  ]
+  if ("/nix/store" | path exists) {
+    $bwrap_options ++= [ --ro-bind /nix /nix ]
+  } else {
+    if ("/usr" | path exists) {
+      $bwrap_options ++= [ --ro-bind /usr /usr ]
+    }
+    if ("/bin" | path exists) {
+      $bwrap_options ++= [ --ro-bind /bin /bin ]
+    }
+    if ("/lib" | path exists) {
+      $bwrap_options ++= [ --ro-bind /lib /lib ]
+    }
+    if ("/lib64" | path exists) {
+      $bwrap_options ++= [ --ro-bind /lib64 /lib64 ]
+    }
+  }
+  if ("/etc" | path exists) {
+    $bwrap_options ++= [ --ro-bind /etc /etc ]
+  }
+  $bwrap_options ++= [
+    --setenv LC_ALL C.UTF-8
+    --setenv LANG C.UTF-8
+  ]
+  $bwrap_options ++= [
+    --tmpfs /tmp
+    --setenv TMPDIR /tmp
+  ]
+  $systemd_options ++= [
+    -p ProtectHome=tmpfs
+  ]
+  $bwrap_options ++= [
+    --dir /home
+    --setenv HOME /home
+  ]
+
+  $systemd_options ++= [
+    -p RuntimeMaxSec=($x.timeout)
+    -p MemoryMax=($x.max_mem)
+    -p TasksMax=($x.max_tasks)
+  ]
+  if not $x.allow_net {
+    $systemd_options ++= [ -p RestrictAddressFamilies=AF_UNIX ]
+    $bwrap_options ++= [ --unshare-net ]
+  }
+  $systemd_options ++= [
+    -p PrivateTmp=yes
+    -p ProtectSystem=strict
+    -p PrivateDevices=yes
+    -p NoNewPrivileges=yes
+    -p LockPersonality=yes
+    -p RestrictNamespaces=yes
+    -p ProtectKernelTunables=yes
+    -p ProtectKernelModules=yes
+    -p ProtectControlGroups=yes
+  ]
+  $bwrap_options ++= [
+    --die-with-parent
+    --unshare-user
+    --uid 0
+    --gid 0
+    --unshare-pid
+    --unshare-uts
+    --unshare-ipc
+    --proc /proc
+    --dev-bind /dev /dev
+  ]
+  $prlimit_options ++= [
+    --fsize=($x.max_file_size)
+    --nofile=($x.max_open_files)
+  ]
+
+  let result = try {
+    # TODO: cant find bwrap...
+    # prlimit ...($prlimit_options) --
+    # TODO: too much privilege nonsense
+    # systemd-run --user --wait --pipe --pty ...($systemd_options)
+    (bwrap ...($bwrap_options) --
+      nu ...($nu_options))
+  } | complete
+  rm -rf $tool_path
+  rm -rf $main_tmp
+
+  if $result.exit_code != 0 {
+    let message = ($"sandbox failed and"
+      + $" exited with '($result.exit_code)'")
+    $result.stderr | rumor log --error "sandbox failed"
+    error make { msg: $"sandbox failed with exit code ($result.exit_code)" }
   }
 }
+
+###############################################################################
+# IMPORTERS
+###############################################################################
 
 def "main import copy" [
   from: path,
   to: path,
-  --allow-fail
+  --allow-fail,
+  --renew
 ]: nothing -> nothing {
-  if $allow_fail {
-    try { cp -n $from $to }
+  let content = if $allow_fail and not ($from | path exists) {
+    return
   } else {
-    cp -f $from $to
+    open --raw $from
   }
+
+  $content | rumor save $to $renew
 }
 
 def "main import vault" [
   path: string,
-  --allow-fail
+  --allow-fail,
+  --renew
 ]: nothing -> nothing {
   let trimmed_path = $path | str trim --char '/'
 
@@ -360,17 +496,16 @@ def "main import vault" [
     | into cell-path
 
   let result = if $allow_fail {
-      let result = try {
-        medusa export $trimmed_path
-          | complete
-      }
-      if ($result.exit_code != 0) {
+      try {
+        (rumor exec tool "import vault"
+          medusa export $trimmed_path)
+      } catch {
         return
       }
-      $result.stdout | decode if bytes 
     } else {
-      medusa export $path
-    }
+      (rumor exec tool "import vault"
+        medusa export $path)
+    } | rumor decode if bytes
 
   let files = $result
     | from yaml
@@ -378,122 +513,57 @@ def "main import vault" [
     | get current
     | transpose name value
   for file in $files {
-    $file.value | save -f $file.name 
+    $file.value | rumor save $file.name $renew
   }
 }
 
 def "main import vault-file" [
   path: string,
   file: string,
-  --allow-fail
+  --allow-fail,
+  --renew
 ]: nothing -> nothing {
   let trimmed_path = $path | str trim --char '/'
 
   let result = if $allow_fail {
-      let result = try {
-        vault kv get -format=json $"($trimmed_path)/current"
-          | complete
-      }
-      if ($result.exit_code != 0) {
+      try {
+        (rumor exec tool "import vault-file"
+          vault kv get -format=json $"($trimmed_path)/current")
+      } catch {
         return
       }
-      $result.stdout | decode if bytes
     } else {
-      vault kv get -format=json $"($trimmed_path)/current"
-    }
+      (rumor exec tool "import vault-file"
+        vault kv get -format=json $"($trimmed_path)/current")
+    } | rumor decode if bytes
 
-  let content = if $allow_fail {
-    let content = $result
-      | from json
-      | get data
-      | get data
-      | get $file --ignore-errors
-    if $content == null {
+  if $allow_fail {
+    try {
+      $result
+        | from json
+        | get data.data
+        | get $file
+    } catch {
       return
     }
-    $content
   } else {
     $result
       | from json
-      | get data
-      | get data
+      | get data.data
       | get $file
-  }
-  $content | save -f $file
+  } | rumor save $file $renew
 }
 
-def "main export copy" [
-  from: path,
-  to: path
-]: nothing -> nothing {
-  cp -f $from $to
-}
-
-def "main export vault" [
-  path: string
-]: nothing -> nothing {
-  let trimmed_path = $path | str trim --char '/'
-
-  let files = ls
-    | each { |file|
-        {
-          name: ($file.name | path basename),
-          value: (open --raw $file.name | str trim)
-        }
-      }
-    | transpose -r -d --ignore-titles
-    | to yaml
-
-  let path = $trimmed_path + "/current"
-  $files | medusa import $path -
-
-  let time = date now | format date "%Y%m%d%H%M%S"
-  let timestamped_path = $"($trimmed_path)/($time)"
-  $files | medusa import $timestamped_path -
-}
-
-def "main export vault-file" [
-  path: string,
-  file: string
-]: nothing -> nothing {
-  let trimmed_path = $path | str trim --char '/'
-  let path = $trimmed_path + "/current"
-
-  let content = open --raw $file | str trim
-
-  let existing = (try { vault kv get -format=json $path | complete })
-  let new = if $existing.exit_code == 0 {
-    $existing.stdout
-      | decode if bytes
-      | from json
-      | get data
-      | get data
-      | upsert $file $content
-  } else {
-    null
-  }
-
-  let time = date now | format date "%Y%m%d%H%M%S"
-  let timestamped_path = $"($trimmed_path)/($time)"
-  if $new == null {
-    $content | vault kv put $path $"($file)=-"
-    $content | vault kv put $timestamped_path $"($file)=-"
-  } else {
-    $content | vault kv patch $path $"($file)=-"
-    $new | to yaml | medusa import $timestamped_path -
-  }
-}
+###############################################################################
+# GENERATORS
+###############################################################################
 
 def "main generate copy" [
   from: path,
   to: path,
   --renew
 ]: nothing -> nothing {
-  if $renew {
-    cp -f $from $to
-  } else {
-    try { cp -n $from $to }    
-  }
+  open --raw $from | rumor save $to $renew
 }
 
 def "main generate text" [
@@ -501,78 +571,34 @@ def "main generate text" [
   text: string,
   --renew
 ]: nothing -> nothing {
-  if $renew {
-    $text | save -f $"($name)"
-  } else {
-    $text | try { save $"($name)" }
-  }
-  chmod 600 $"($name)"
+  $text | rumor save $name $renew
 }
 
-def "main generate json" [
+def "main generate data" [
   name: path,
-  format: string,
-  json: string,
+  in_format: string,
+  data: path,
+  out_format: string,
   --renew
 ]: nothing -> nothing {
-  let json = if $format == "json" {
-    open --raw $json
-  } else if $format == "yaml" {
-    open --raw $json | from yaml | to json
-  } else if $format == "toml" {
-    open --raw $json | from toml | to json
+  if not (rumor format valid $in_format) {
+    (rumor log
+      --module "generate data"
+      --error $"Invalid in format: '($in_format)'")
+    exit 1
   }
 
-  if $renew {
-    $json | save -f $"($name)"
-  } else {
-    $json | try { save $"($name)" }
-  }
-  chmod 600 $"($name)"
-}
-
-def "main generate yaml" [
-  name: path,
-  format: string,
-  yaml: string,
-  --renew
-]: nothing -> nothing {
-  let yaml = if $format == "json" {
-    open --raw $yaml | from json | to yaml
-  } else if $format == "yaml" {
-    open --raw $yaml
-  } else if $format == "toml" {
-    open --raw $yaml | from toml | to yaml
+  if not (rumor format valid $out_format) {
+    (rumor log
+      --module "generate data"
+      --error $"Invalid out format: '($out_format)'")
+    exit 1
   }
 
-  if $renew {
-    $yaml | save -f $"($name)"
-  } else {
-    $yaml | try { save $"($name)" }
-  }
-  chmod 600 $"($name)"
-}
-
-def "main generate toml" [
-  name: path,
-  format: string,
-  toml: path,
-  --renew
-]: nothing -> nothing {
-  let toml = if $format == "json" {
-    open --raw $toml | from json | to toml
-  } else if $format == "yaml" {
-    open --raw $toml | from yaml | to toml
-  } else if $format == "toml" {
-    open --raw $toml
-  }
-
-  if $renew {
-    $toml | save -f $"($name)"
-  } else {
-    $toml | try { save $"($name)" }
-  }
-  chmod 600 $"($name)"
+  let deserialized =  rumor format read $data $in_format
+  let serialized = $deserialized | rumor format serialize $out_format
+  $serialized | rumor save $name $renew
+  $out_format | rumor save $"($name)-format" $renew
 }
 
 def "main generate pin" [
@@ -580,15 +606,8 @@ def "main generate pin" [
   --length: int = 8
   --renew
 ]: nothing -> nothing {
-  let pin = (0..($length - 1))
-    | each { |_| random int 0..9 }
-    | str join ""
-  if $renew {
-    $pin | save -f $"($name)"
-  } else {
-    $pin | try { save $"($name)" }
-  }
-  chmod 600 $"($name)"
+  let pin = rumor secure random digits "generate pin" $length
+  $pin | rumor save $name $renew
 }
 
 def "main generate key" [
@@ -596,13 +615,8 @@ def "main generate key" [
   --length: int = 32,
   --renew
 ]: nothing -> nothing {
-  let id = random chars --length $length
-  if $renew {
-    $id | save -f $name
-  } else {
-    $id | try { save $name }
-  }
-  chmod 600 $name
+  let id = rumor secure random alnum "generate key" $length
+  $id | rumor save $name $renew
 }
 
 def "main generate id" [
@@ -610,218 +624,317 @@ def "main generate id" [
   --length: int = 16,
   --renew
 ]: nothing -> nothing  {
-  let id = random chars --length $length
-  if $renew {
-    $id | save -f $name
-  } else {
-    $id | try { save $name }
-  }
-  chmod 644 $name
+  let id = rumor secure random alnum "generate id" $length
+  $id | rumor save $name $renew
 }
 
-def "main generate mkpasswd" [
+def "main generate password" [
   public: path,
   private: path,
   --length: int = 8,
   --renew
 ]: nothing -> nothing {
-  let pass = random chars --length $length
-  # NOTE: setting algorithm here so output is at least somewhat deterministic
-  let encrypted = $pass | mkpasswd --stdin --method=yescrypt
+  let pass = rumor secure random alnum "generate password" $length
+  let salt = openssl rand -base64 32
+  let encrypted =  $pass
+    | (rumor exec tool "generate password"
+        argon2 $salt -e -id -k 19456 -t 2 -p 1)
 
-  if $renew {
-    $pass | save -f $private
-  } else {
-    $pass | try { save $private }
-  }
-  chmod 600 $private
-
-  if $renew {
-    $encrypted | save -f $public
-  } else {
-    $encrypted | try { save $public }
-  }
-  chmod 644 $public
+  $pass | rumor save $private $renew
+  $encrypted | rumor save $public $renew --public
 }
 
-def "main generate age" [
+def "main generate password-crypt-3" [
+  public: path,
+  private: path,
+  --length: int = 8,
+  --renew
+]: nothing -> nothing {
+  let pass = rumor secure random alnum "generate password-crypt-3" $length
+  let encrypted = $pass
+    | (rumor exec tool "generate password-crypt-3"
+        mkpasswd --stdin --method=yescrypt)
+
+  $pass | rumor save $private $renew
+  $encrypted | rumor save $public $renew --public
+}
+
+def "main generate age-key" [
   public: string,
   private: string,
   --renew
 ]: nothing -> nothing {
-  age-keygen err> (std null-device) out> $"($private)-temp"
-  open --raw $"($private)-temp"
-    | (age-keygen -y
-      err> (std null-device)
-      out> $"($public)-temp")
+  let private_content = (rumor exec tool "generate age-key"
+    age-keygen)
+  let public_content = $private_content
+    | (rumor exec tool "generate age-key"
+        age-keygen -y)
 
-  if $renew {
-    mv -f $"($private)-temp" $private
-  } else {
-    try { mv -n $"($private)-temp" $private }
-  }
-  rm -f $"($private)-temp"
-  chmod 600 $private
-
-  if $renew {
-    mv -f $"($public)-temp" $public
-  } else {
-    try { mv -n $"($public)-temp" $public }
-  }
-  rm -f $"($public)-temp"
-  chmod 644 $public
+  $private_content | rumor save $private $renew
+  $public_content | rumor save $public $renew --public
 }
 
-def "main generate ssh-keygen" [
+def "main generate ssh-key" [
   name: string,
   public: path,
   private: path,
+  --password: string = "",
   --renew
 ]: nothing -> nothing {
-  (ssh-keygen
-    -a 100
-    -t ed25519
-    -C $name
-    -N ""
-    -f $"($private)-temp")
-  mv -f $"($private)-temp.pub" $"($public)-temp"
+  mut password = $password
 
-  if $renew {
-    mv -f $"($private)-temp" $private
+  let password_args =  if ($password | str trim | is-not-empty) {
+    [ -N (open --raw $password) ]
   } else {
-    try { mv -n $"($private)-temp" $private }
+    [ -N "''" ]
   }
-  rm -f $"($private)-temp"
-  chmod 600 $private
 
-  if $renew {
-    mv -f $"($public)-temp" $public
-  } else {
-    try { mv -n $"($public)-temp" $public }
-  }
-  rm -f $"($public)-temp"
-  chmod 644 $public
+  (rumor exec tool "generate ssh-key"
+    ssh-keygen
+      -a 100
+      -t ed25519
+      -C $name
+      ...($password_args)
+      -f $"($private)($tmp_suffix)")
+  let private_content = open --raw  $"($private)($tmp_suffix)"
+  let public_content = open --raw  $"($private)($tmp_suffix).pub"
+  rm -f $"($private)($tmp_suffix)"
+  rm -f $"($private)($tmp_suffix).pub"
+
+  $private_content | rumor save $private $renew
+  $public_content | rumor save $public $renew --public
 }
 
-def "main generate openssl-ca" [
-  config: string,
-  public: path,
+def "main generate key-split" [
+  key: string,
+  prefix: string,
+  threshold: int,
+  shares: int,
+  --renew
+]: nothing -> nothing {
+  let shares = open --raw $key
+    | (rumor exec tool "generate key-split"
+        ssss-split
+          -t ($threshold | into string)
+          -n ($shares | into string)
+          -q)
+    | lines
+
+  for item in ($shares | enumerate) {
+    let share = $"($prefix)-($item.index)"
+    $item.item | rumor save $share $renew
+  }
+}
+
+def "main generate key-combine" [
+  shares: string,
+  key: string,
+  threshold: int,
+  --renew
+]: nothing -> nothing {
+  let shares = $shares
+    | split row ","
+    | each { open --raw }
+    | str join "\n"
+  let value = $"($shares)\n"
+    | (rumor exec tool "generate key-combine"
+        ssss-combine
+          -t ($threshold | into string)
+          -q)
+  $value | rumor save $key $renew
+}
+
+def "main generate tls-root" [
+  common_name: string,
+  organization: string,
+  config: path,
   private: path,
+  public: path,
+  --pathlen: int = 1,
   --days: int = 3650,
   --renew
 ]: nothing -> nothing {
-  (openssl genpkey
-    -algorithm EC
-    -pkeyopt ec_paramgen_curve:prime256v1
-    -out $"($private)-temp")
-
-  (openssl req -x509
-    -key $"($private)-temp"
-    -out $"($public)-temp"
-    -config $config
-    -extensions v3_ca
-    -days $days)
-
-  if $renew {
-    mv -f $"($private)-temp" $private
-  } else {
-    try { mv -n $"($private)-temp" $private }
-  }
-  rm -f $"($private)-temp"
-  chmod 600 $private
-
-  if $renew {
-    mv -f $"($public)-temp" $public
-  } else {
-    try { mv -n $"($public)-temp" $public }
-  }
-  rm -f $"($public)-temp"
-  chmod 644 $public
+  (rumor tls root
+    "generate tls-root"
+    $tls_algorithm_args.0
+    $tls_algorithm_args.1
+    $common_name
+    $organization
+    $config
+    $private
+    $public
+    $pathlen
+    $days
+    $renew)
 }
 
-def "main generate openssl-dhparam" [
-  name: path,
-  --renew
-]: nothing -> nothing {
-  openssl dhparam -out $"($name)-temp" 2048
-  if $renew {
-    mv -f $"($name)-temp" $name
-  } else {
-    try { mv -n $"($name)-temp" $name }
-  }
-  rm -f $"($name)-temp"
-  chmod 600 $name
-}
-
-def "main generate openssl" [
+def "main generate tls-intermediary" [
+  common_name: string,
+  organization: string,
+  config: path,
+  private: path,
+  request: path,
+  request_config: path,
   ca_public: path,
   ca_private: path,
   serial: path,
-  config: string,
   public: path,
-  private: path,
-  --days: int = 3650
+  --pathlen: int = 0,
+  --days: int = 3650,
   --renew
 ]: nothing -> nothing {
-  (openssl genpkey
-    -algorithm EC
-    -pkeyopt ec_paramgen_curve:prime256v1
-    -out $"($private)-temp")
+  (rumor tls intermediary
+    "generate tls-intermediary"
+    $tls_algorithm_args.0
+    $tls_algorithm_args.1
+    $common_name
+    $organization
+    $config
+    $request_config
+    $private
+    $request
+    $ca_public
+    $ca_private
+    $serial
+    $public
+    $pathlen
+    $days
+    $renew)
+}
 
-  (openssl req -new
-    -key $"($private)-temp"
-    -out $"($private)-temp.req"
-    -config $config)
+def "main generate tls-leaf" [
+  common_name: string,
+  organization: string,
+  sans: string,
+  config: path,
+  request_config: path,
+  private: path,
+  request: path,
+  ca_public: path,
+  ca_private: path,
+  serial: path,
+  public: path,
+  --days: int = 3650,
+  --renew
+]: nothing -> nothing {
+  (rumor tls leaf
+    "generate tls-leaf"
+    $tls_algorithm_args.0
+    $tls_algorithm_args.1
+    $common_name
+    $organization
+    $sans
+    $config
+    $request_config
+    $private
+    $request
+    $ca_public
+    $ca_private
+    $serial
+    $public
+    $days
+    $renew)
+}
 
-  if ($serial | path exists) {
-    cp $serial $"($serial)-temp"
-    (openssl x509 -req
-      -in $"($private)-temp.req"
-      -CA $ca_public
-      -CAkey $ca_private
-      -CAserial $"($serial)-temp"
-      -extfile $config
-      -extensions ext
-      -out $"($public)-temp"
-      -days $days)
-  } else {
-    (openssl x509 -req
-      -in $"($private)-temp.req"
-      -CA $ca_public
-      -CAkey $ca_private
-      -CAcreateserial
-      -CAserial $"($serial)-temp"
-      -extfile $config
-      -extensions ext
-      -out $"($public)-temp"
-      -days $days)
-  }
+def "main generate tls-rsa-root" [
+  common_name: string,
+  organization: string,
+  config: path,
+  private: path,
+  public: path,
+  --pathlen: int = 1,
+  --days: int = 3650,
+  --renew
+]: nothing -> nothing {
+  (rumor tls root
+    "generate tls-root"
+    $tls_rsa_algorithm_args.0
+    $tls_rsa_algorithm_args.1
+    $common_name
+    $organization
+    $config
+    $private
+    $public
+    $pathlen
+    $days
+    $renew)
+}
 
-  rm -f $"($private)-temp.req"
+def "main generate tls-rsa-intermediary" [
+  common_name: string,
+  organization: string,
+  config: path,
+  request_config: path,
+  private: path,
+  request: path,
+  ca_public: path,
+  ca_private: path,
+  serial: path,
+  public: path,
+  --pathlen: int = 0,
+  --days: int = 3650,
+  --renew
+]: nothing -> nothing {
+  (rumor tls intermediary
+    "generate tls-intermediary"
+    $tls_rsa_algorithm_args.0
+    $tls_rsa_algorithm_args.1
+    $common_name
+    $organization
+    $config
+    $request_config
+    $private
+    $request
+    $ca_public
+    $ca_private
+    $serial
+    $public
+    $pathlen
+    $days
+    $renew)
+}
 
-  if $renew {
-    mv -f $"($serial)-temp" $serial
-  } else {
-    try { mv -n $"($serial)-temp" $serial }
-  }
-  rm -f $"($serial)-temp"
-  chmod 600 $serial
+def "main generate tls-rsa-leaf" [
+  common_name: string,
+  organization: string,
+  sans: string,
+  config: path,
+  request_config: path,
+  private: path,
+  request: path,
+  ca_public: path,
+  ca_private: path,
+  serial: path,
+  public: path,
+  --days: int = 3650,
+  --renew
+]: nothing -> nothing {
+  (rumor tls leaf
+    "generate tls-leaf"
+    $tls_rsa_algorithm_args.0
+    $tls_rsa_algorithm_args.1
+    $common_name
+    $organization
+    $sans
+    $config
+    $request_config
+    $private
+    $request
+    $ca_public
+    $ca_private
+    $serial
+    $public
+    $days
+    $renew)
+}
 
-  if $renew {
-    mv -f $"($private)-temp" $private
-  } else {
-    try { mv -n $"($private)-temp" $private }
-  }
-  rm -f $"($private)-temp"
-  chmod 600 $private
-
-  if $renew {
-    mv -f $"($public)-temp" $public
-  } else {
-    try { mv -n $"($public)-temp" $public }
-  }
-  rm -f $"($public)-temp"
-  chmod 644 $public
+def "main generate tls-dhparam" [
+  name: path,
+  --renew
+]: nothing -> nothing {
+  let dhparam = (rumor exec tool "generate tls-dhparam"
+    openssl dhparam -quiet 2048)
+  $dhparam | rumor save $name $renew
 }
 
 def "main generate nebula-ca" [
@@ -831,30 +944,22 @@ def "main generate nebula-ca" [
   --days: int = 3650,
   --renew
 ]: nothing -> nothing {
-  (nebula-cert ca
+  (rumor exec tool "generate nebula-ca"
+    nebula-cert ca
     -name $name
     -duration $"($days * 24)h"
-    -out-crt $"($public)-temp"
-    -out-key $"($private)-temp")
+    -out-crt $"($public)($tmp_suffix)"
+    -out-key $"($private)($tmp_suffix)")
+  let public_content = open --raw $"($public)($tmp_suffix)"
+  let private_content = open --raw $"($private)($tmp_suffix)"
+  rm -f $"($public)($tmp_suffix)"
+  rm -f $"($private)($tmp_suffix)"
 
-  if $renew {
-    mv -f $"($private)-temp" $private
-  } else {
-    try { mv -n $"($private)-temp" $private }
-  }
-  rm -f $"($private)-temp"
-  chmod 600 $private
-
-  if $renew {
-    mv -f $"($public)-temp" $public
-  } else {
-    try { mv -n $"($public)-temp" $public }
-  }
-  rm -f $"($public)-temp"
-  chmod 644 $public
+  $public_content | rumor save $public $renew
+  $private_content | rumor save $private $renew
 }
 
-def "main generate nebula" [
+def "main generate nebula-cert" [
   ca_public: path,
   ca_private: path,
   name: string,
@@ -863,29 +968,21 @@ def "main generate nebula" [
   private: path,
   --renew
 ]: nothing -> nothing {
-  (nebula-cert sign
+  (rumor exec tool "generate nebula-cert"
+    nebula-cert sign
     -ca-crt $ca_public
     -ca-key $ca_private
     -name $name
     -ip $ip
-    -out-crt $"($public)-temp"
-    -out-key $"($private)-temp")
+    -out-crt $"($public)($tmp_suffix)"
+    -out-key $"($private)($tmp_suffix)")
+  let public_content = open --raw $"($public)($tmp_suffix)"
+  let private_content = open --raw $"($private)($tmp_suffix)"
+  rm -f $"($public)($tmp_suffix)"
+  rm -f $"($private)($tmp_suffix)"
 
-  if $renew {
-    mv -f $"($private)-temp" $private
-  } else {
-    try { mv -n $"($private)-temp" $private }
-  }
-  rm -f $"($private)-temp"
-  chmod 600 $private
-
-  if $renew {
-    mv -f $"($public)-temp" $public
-  } else {
-    try { mv -n $"($public)-temp" $public }
-  }
-  rm -f $"($public)-temp"
-  chmod 644 $public
+  $public_content | rumor save $public $renew
+  $private_content | rumor save $private $renew
 }
 
 def "main generate cockroach-ca" [
@@ -893,31 +990,21 @@ def "main generate cockroach-ca" [
   private: path,
   --renew
 ]: nothing -> nothing {
-  rm -rf cockroach-temp
-  mkdir cockroach-temp
+  rm -rf $"cockroach($tmp_suffix)"
+  mkdir $"cockroach($tmp_suffix)"
+  (rumor exec tool "generate cockroach-ca"
+    cockroach cert create-ca
+    $"--certs-dir=cockroach($tmp_suffix)"
+    $"--ca-key=cockroach($tmp_suffix)/ca.key")
+  let public_content = open --raw $"cockroach($tmp_suffix)/ca.crt"
+  let private_content = open --raw $"cockroach($tmp_suffix)/ca.key"
+  rm -rf $"cockroach($tmp_suffix)"
 
-  (cockroach cert create-ca
-    --certs-dir=cockroach-temp
-    --ca-key=cockroach-temp/ca.key)
-
-  if $renew {
-    mv -f $"cockroach-temp/ca.key" $private
-  } else {
-    try { mv -n $"cockroach-temp/ca.key" $private }
-  }
-  chmod 600 $private
-
-  if $renew {
-    mv -f $"cockroach-temp/ca.crt" $public
-  } else {
-    try { mv -n $"cockroach-temp/ca.crt" $public }
-  }
-  chmod 644 $public
-
-  rm -rf cockroach-temp
+  $public_content | rumor save $public $renew
+  $private_content | rumor save $private $renew
 }
 
-def "main generate cockroach" [
+def "main generate cockroach-node-cert" [
   ca_public: path,
   ca_private: path,
   public: path,
@@ -925,35 +1012,24 @@ def "main generate cockroach" [
   hosts: string,
   --renew
 ]: nothing -> nothing {
-  rm -rf cockroach-temp
-  mkdir cockroach-temp
-
-  cp $ca_private cockroach-temp/ca.key
-  cp $ca_public cockroach-temp/ca.crt
-
-  (cockroach cert create-node
+  rm -rf $"cockroach($tmp_suffix)"
+  mkdir $"cockroach($tmp_suffix)"
+  cp $ca_private $"cockroach($tmp_suffix)/ca.key"
+  cp $ca_public $"cockroach($tmp_suffix)/ca.crt"
+  (rumor exec tool "generate cockroach-node-cert"
+    cockroach cert create-node
     ...($hosts | str trim | split row ",")
-    --certs-dir=cockroach-temp
-    --ca-key=cockroach-temp/ca.key)
+    $"--certs-dir=cockroach($tmp_suffix)"
+    $"--ca-key=cockroach($tmp_suffix)/ca.key")
+  let public_content = open --raw $"cockroach($tmp_suffix)/node.crt"
+  let private_content = open --raw $"cockroach($tmp_suffix)/node.key"
+  rm -rf $"cockroach($tmp_suffix)"
 
-  if $renew {
-    mv -f $"cockroach-temp/node.key" $private
-  } else {
-    try { mv -n $"cockroach-temp/node.key" $private }
-  }
-  chmod 600 $private
-
-  if $renew {
-    mv -f $"cockroach-temp/node.crt" $public
-  } else {
-    try { mv -n $"cockroach-temp/node.crt" $public }
-  }
-  chmod 644 $public
-
-  rm -rf cockroach-temp
+  $public_content | rumor save $public $renew
+  $private_content | rumor save $private $renew
 }
 
-def "main generate cockroach-client" [
+def "main generate cockroach-client-cert" [
   ca_public: path,
   ca_private: path,
   public: path,
@@ -961,32 +1037,21 @@ def "main generate cockroach-client" [
   user: string,
   --renew
 ]: nothing -> nothing {
-  rm -rf cockroach-temp
-  mkdir cockroach-temp
-
-  cp $ca_private cockroach-temp/ca.key
-  cp $ca_public cockroach-temp/ca.crt
-
-  (cockroach cert create-client
+  rm -rf $"cockroach($tmp_suffix)"
+  mkdir $"cockroach($tmp_suffix)"
+  cp $ca_private $"cockroach($tmp_suffix)/ca.key"
+  cp $ca_public $"cockroach($tmp_suffix)/ca.crt"
+  (rumor exec tool "generate cockroach-client-cert"
+    cockroach cert create-client
     $user
-    --certs-dir=cockroach-temp
-    --ca-key=cockroach-temp/ca.key)
+    $"--certs-dir=cockroach($tmp_suffix)"
+    $"--ca-key=cockroach($tmp_suffix)/ca.key")
+  let public_content = open --raw $"cockroach($tmp_suffix)/client.($user).crt"
+  let private_content = open --raw $"cockroach($tmp_suffix)/client.($user).key"
+  rm -rf $"cockroach($tmp_suffix)"
 
-  if $renew {
-    mv -f $"cockroach-temp/client.($user).key" $private
-  } else {
-    try { mv -n $"cockroach-temp/client.($user).key" $private }
-  }
-  chmod 600 $private
-
-  if $renew {
-    mv -f $"cockroach-temp/client.($user).crt" $public
-  } else {
-    try { mv -n $"cockroach-temp/client.($user).crt" $public }
-  }
-  chmod 644 $public
-
-  rm -rf cockroach-temp
+  $public_content | rumor save $public $renew
+  $private_content | rumor save $private $renew
 }
 
 def "main generate env" [
@@ -995,13 +1060,7 @@ def "main generate env" [
   vars: string,
   --renew
 ]: string -> nothing {
-  let vars = if $format == "json" {
-    open --raw $vars | from json
-  } else if $format == "yaml" {
-    open --raw $vars | from yaml
-  } else if $format == "toml" {
-    open --raw $vars | from toml
-  }
+  let vars = rumor format read $vars $format
 
   let vars = $vars
     | transpose key value
@@ -1026,27 +1085,16 @@ def "main generate env" [
       }
     | str trim
 
-  if $renew {
-    $vars | save -f $name
-  } else {
-    $vars | try { save $name }
-  }
-  chmod 600 $name
+  $vars | rumor save $name $renew
 }
 
 def "main generate moustache" [
   name: string,
   format: string,
   variables_and_template: path,
-  --renew    
+  --renew
 ]: string -> nothing {
-  let variables_and_template = if $format == "json" {
-    open --raw $variables_and_template | from json
-  } else if $format == "yaml" {
-    open --raw $variables_and_template | from yaml
-  } else if $format == "toml" {
-    open --raw $variables_and_template | from toml
-  }
+  let variables_and_template = rumor format read $variables_and_template $format
 
   let vars = $variables_and_template.variables
     | transpose key value
@@ -1058,42 +1106,40 @@ def "main generate moustache" [
         }
         {
           key: $pair.key,
-          value: ($raw | escape string)
+          value: ($raw | rumor escape env string)
         }
       }
     | reduce --fold "" { |item, accumulator|
-        $"($accumulator) ($item.key)=\"($item.value)\""
+        $"($accumulator)($item.key)=\"($item.value)\"\n"
       }
     | str trim
 
-  $variables_and_template.template | str trim | save -f $"($name)-temp"
-  let command = $"env ($vars) mo '($name)-temp' | collect | save -f ($name)-temp"
-  nu -c $command
+  $vars | str trim | rumor save $"($name)-variables" $renew
+  $variables_and_template.template | str trim | rumor save $"($name)-template" $renew
+  (rumor exec tool "generate moustache"
+    mo $"--source=($name)-variables" $"($name)-template")
+    | rumor save $name $renew
+}
 
-  if $renew {
-    mv -f $"($name)-temp" $name
-  } else {
-    try { mv -n $"($name)-temp" $name }
-  }
-  rm -f $"($name)-temp"
-  chmod 600 $name
+def "main generate script" [
+  name: string,
+  text: string,
+  --renew
+]: string -> nothing {
+  $text | rumor save $name $renew
+  (rumor exec tool "generate script"
+    nu $name $renew)
 }
 
 def "main generate sops" [
   age: string,
   public: string,
   private: string,
-  format: string,  
+  format: string,
   values: path,
   --renew
 ]: string -> nothing {
-  let values = if $format == "json" {
-    open --raw $values | from json
-  } else if $format == "yaml" {
-    open --raw $values | from yaml
-  } else if $format == "toml" {
-    open --raw $values | from toml
-  }
+  let values = rumor format read $values $format
 
   let values = $values
     | transpose key value
@@ -1110,33 +1156,1314 @@ def "main generate sops" [
         }
       }
     | transpose -r -d --ignore-titles
+    | to yaml
 
-  $values | to yaml | save -f $"($private)-temp"
+  $values | rumor save $private $renew
 
-  (sops encrypt $"($private)-temp"
+  let encrypted = (rumor exec tool "generate sops"
+    sops encrypt $private
     --input-type yaml
-    --age (open --raw $age)
-    --output $"($public)-temp"
+    --age (open --raw $age | str trim)
     --output-type yaml)
 
-  if $renew {
-    mv -f $"($private)-temp" $private
-  } else {
-    try { mv -n $"($private)-temp" $private }
-  }
-  rm -f $"($private)-temp"
-  chmod 600 $private
-
-  if $renew {
-    mv -f $"($public)-temp" $public
-  } else {
-    try { mv -n $"($public)-temp" $public }
-  }
-  rm -f $"($public)-temp"
-  chmod 644 $public
+  $encrypted | rumor save $public $renew --public
 }
 
-def "decode if bytes" []: any -> string {
+###############################################################################
+# EXPORTERS
+###############################################################################
+
+def "main export copy" [
+  from: path,
+  to: path
+]: nothing -> nothing {
+  cp -f $from $to
+}
+
+def "main export vault" [
+  path: string
+]: nothing -> nothing {
+  let trimmed_path = $path | str trim --char '/'
+
+  let files = ls
+    | each { |file|
+        {
+          name: ($file.name | path basename),
+          value: (open --raw $file.name | str trim)
+        }
+      }
+    | transpose -r -d --ignore-titles
+    | to yaml
+
+  let path = $trimmed_path + "/current"
+  $files | (rumor exec tool "export vault"
+    medusa import $path -)
+
+  let time = rumor vault now
+  let timestamped_path = $"($trimmed_path)/($time)"
+  $files | (rumor exec tool "export vault"
+    medusa import $timestamped_path -)
+}
+
+def "main export vault-file" [
+  path: string,
+  file: string
+]: nothing -> nothing {
+  let trimmed_path = $path | str trim --char '/'
+  let path = $trimmed_path + "/current"
+
+  let content = open --raw $file | str trim
+
+  let new = try {
+    (rumor exec tool "export vault-file"
+      vault kv get -format=json $path)
+      | rumor decode if bytes
+      | from json
+      | get data
+      | get data
+      | upsert $file $content
+    } catch {
+      null
+    }
+
+  let time = rumor vault now
+  let timestamped_path = $"($trimmed_path)/($time)"
+  if $new == null {
+    $content | (rumor exec tool "export vault-file"
+      vault kv put $path $"($file)=-")
+    $content | (rumor exec tool "export vault-file"
+      vault kv put $timestamped_path $"($file)=-")
+  } else {
+    $content | (rumor exec tool "export vault-file"
+      vault kv patch $path $"($file)=-")
+    $new | to yaml | (rumor exec tool "export vault-file"
+      medusa import $timestamped_path -)
+  }
+}
+
+###############################################################################
+# TOP-LEVEL IMPLEMENTATION
+###############################################################################
+
+def "rumor validate" [
+  script: string,
+  schema_string: string,
+  commandline: string,
+  parsed_commandline: any,
+  specification: any,
+  specification_format: string,
+  specification_string: string
+]: nothing -> nothing {
+  let x = $parsed_commandline
+
+  if ($specification_string | into binary | length) > $x.max_specification_size {
+    rumor log --error "Maximum specification size exceeded."
+    exit 1
+  }
+
+  if ($specification.imports | length) > $x.max_imports {
+    rumor log --error "Maximum imports exceeded."
+    exit 1
+  }
+
+  if ($specification.generations | length) > $x.max_generations {
+    rumor log --error "Maximum generations exceeded."
+    exit 1
+  }
+
+  if ($specification.exports | length) > $x.max_exports {
+    rumor log --error "Maximum exports exceeded."
+    exit 1
+  }
+
+  let validation_result = try {
+   $specification
+      | to json
+      | json-schema-validate $schema
+  } | complete
+  if ($validation_result.exit_code != 0) {
+    $validation_result.stderr | rumor log --error $"Specification schema invalid"
+    exit 1
+  }
+
+  if not (rumor format valid $x.manifest_format) {
+    rumor log --error ("Invalid manifest format."
+      + " Supported formats are: 'json', 'yaml', 'toml'.")
+    exit 1
+  }
+
+  let phase = "input"
+  let with_output = false
+  let manifest = (rumor create manifest
+    $script
+    $schema_string
+    $commandline
+    $parsed_commandline
+    $specification_string
+    $specification_format
+    $phase
+    null
+    $with_output
+    $x.manifest_format)
+
+  let manifest_path = (rumor mktemp --suffix $".($x.manifest_format)" manifest)
+  $manifest | rumor format write $manifest_path $x.manifest_format --renew --public
+  # TODO: cleanup without clobbering error
+  main from-manifest $manifest_path
+  rm -f $manifest_path
+}
+
+def "rumor run" [input_manifest_path: string]: nothing -> nothing {
+  let input_manifest_format = rumor format detect $input_manifest_path
+  let input_manifest = rumor format read $input_manifest_path
+  let script = $input_manifest.input.script_text
+  let schema_string = $input_manifest.input.schema_text
+  let commandline = $input_manifest.input.commandline
+  let parsed_commandline = $input_manifest.input.parsed_commandline | from json
+  let specification_format = $input_manifest.input.specification_format
+  let specification_string = $input_manifest.input.specification_text
+  let specification = $specification_string | rumor format deserialize $specification_format
+  let manifest_format = $input_manifest.format
+  let dry_run = $parsed_commandline.dry_run
+  let verbose = $parsed_commandline.verbose
+  let allow_script = $parsed_commandline.allow_script
+  let with_output = true
+
+  mut import_error = null
+  for import in $specification.imports {
+    $import_error = try {
+      rumor run import $import
+      null
+    } catch { |err|
+      $err
+    }
+
+    if $import_error == null {
+      break
+    }
+  }
+
+  let phase = "import"
+  let import_manifest = (rumor create manifest
+    $script
+    $schema_string
+    $commandline
+    $parsed_commandline
+    $specification_string
+    $specification_format
+    $phase
+    $import_error
+    $with_output
+    $manifest_format)
+
+  if $import_error != null {
+    ($input_manifest | rumor format write
+      $"rumor-input-manifest.($manifest_format)"
+      $manifest_format
+      --renew
+      --public)
+    ($import_manifest | rumor format write
+      $"rumor-import-manifest.($manifest_format)"
+      $manifest_format
+      --renew
+      --public)
+    return
+  }
+
+  mut generation_error = null
+  for generation in $specification.generations {
+    $generation_error = try {
+      rumor run generation $generation $allow_script
+      null
+    } catch { |err|
+      $err
+    }
+
+    if $generation_error != null {
+      break
+    }
+  }
+
+  let phase = "generation"
+  let generation_manifest = (rumor create manifest
+    $script
+    $schema_string
+    $commandline
+    $parsed_commandline
+    $specification_string
+    $specification_format
+    $phase
+    $generation_error
+    $with_output
+    $manifest_format)
+
+  ($input_manifest | rumor format write
+    $"rumor-input-manifest.($manifest_format)"
+    $manifest_format
+    --renew
+    --public)
+  ($import_manifest | rumor format write
+    $"rumor-import-manifest.($manifest_format)"
+    $manifest_format
+    --renew
+    --public)
+  ($generation_manifest | rumor format write
+    $"rumor-generation-manifest.($manifest_format)"
+    $manifest_format
+    --renew
+    --public)
+
+  if $generation_error != null or $dry_run {
+    return
+  }
+
+  mut export_error = null
+  for export in $specification.exports {
+    $export_error = try {
+      rumor run export $export
+      null
+    } catch { |err|
+      $err
+    }
+
+    if $export_error != null {
+      break
+    }
+  }
+  if $export_error != null {
+    return
+  }
+}
+
+def "rumor run import" [import: any]: nothing -> nothing {
+  mut args = [ ]
+
+  if ($import.importer == "vault") {
+    $args ++= [ ($import.arguments.path) ]
+    if (($import.arguments | get --ignore-errors allow_fail) != null
+      and $import.arguments.allow_fail) {
+      $args ++= [ --allow-fail ]
+    }
+  } else if ($import.importer == "vault-file") {
+    $args ++= [ ($import.arguments.path) ]
+    $args ++= [ ($import.arguments.file) ]
+    if (($import.arguments | get --ignore-errors allow_fail) != null
+      and $import.arguments.allow_fail) {
+      $args ++= [ --allow-fail ]
+    }
+  } else if ($import.importer == "copy") {
+    $args ++= [ ($import.arguments.from) ]
+    $args ++= [ ($import.arguments.to) ]
+    if (($import.arguments | get --ignore-errors allow_fail) != null
+      and $import.arguments.allow_fail) {
+      $args ++= [ --allow-fail ]
+    }
+  }
+
+  rumor exec module $"import ($import.importer)" ...($args)
+}
+
+def "rumor run generation" [generation: any, allow_script: bool]: nothing -> nothing {
+  mut args = [ ]
+  mut generator = $generation.generator
+
+  if $generation.generator == "copy" {
+    $args ++= [ ($generation.arguments.from) ]
+    $args ++= [ ($generation.arguments.to) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "text" {
+    $args ++= [ ($generation.arguments.name) ]
+    $args ++= [ ($generation.arguments.text | rumor escape arg string) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "json" {
+    $generator = "data"
+    $args ++= [ ($generation.arguments.name) ]
+    let json = $"($generation.arguments.name)-json"
+    $args ++= [ json ]
+    $args ++= [ ($json) ]
+    $args ++= [ json ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+      $generation.arguments.value | to json | rumor save $json true --public
+    } else {
+      $generation.arguments.value | to json | rumor save $json false --public
+    }
+  } else if $generation.generator == "yaml" {
+    $generator = "data"
+    $args ++= [ ($generation.arguments.name) ]
+    let yaml = $"($generation.arguments.name)-yaml"
+    $args ++= [ yaml ]
+    $args ++= [ ($yaml) ]
+    $args ++= [ yaml ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+      $generation.arguments.value | to yaml | rumor save $yaml true --public
+    } else {
+      $generation.arguments.value | to yaml | rumor save $yaml false --public
+    }
+  } else if $generation.generator == "toml" {
+    $generator = "data"
+    $args ++= [ ($generation.arguments.name) ]
+    let toml = $"($generation.arguments.name)-toml"
+    $args ++= [ toml ]
+    $args ++= [ ($toml) ]
+    $args ++= [ toml ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+      $generation.arguments.value | to toml | rumor save $toml true --public
+    } else {
+      $generation.arguments.value | to toml | rumor save $toml false --public
+    }
+  } else if $generation.generator == "id" {
+    $args ++= [ ($generation.arguments.name) ]
+    if (($generation.arguments | get --ignore-errors length) != null) {
+      $args ++= [ --length ($generation.arguments.length) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "key" {
+    $args ++= [ ($generation.arguments.name) ]
+    if (($generation.arguments | get --ignore-errors length) != null) {
+      $args ++= [ --length ($generation.arguments.length) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "pin" {
+    $args ++= [ ($generation.arguments.name) ]
+    if (($generation.arguments | get --ignore-errors length) != null) {
+      $args ++= [ --length ($generation.arguments.length) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "password" {
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    if (($generation.arguments | get --ignore-errors length) != null) {
+      $args ++= [ --length ($generation.arguments.length) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "password-crypt-3" {
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    if (($generation.arguments | get --ignore-errors length) != null) {
+      $args ++= [ --length ($generation.arguments.length) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "age-key" {
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "ssh-key" {
+    $args ++= [ ($generation.arguments.name) ]
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "key-split" {
+    $args ++= [ ($generation.arguments.key) ]
+    $args ++= [ ($generation.arguments.prefix) ]
+    $args ++= [ ($generation.arguments.threshold) ]
+    $args ++= [ ($generation.arguments.shares) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "key-combine" {
+    $args ++= [ ($generation.arguments.shares | str join ',') ]
+    $args ++= [ ($generation.arguments.key) ]
+    $args ++= [ ($generation.arguments.threshold) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "nebula-ca" {
+    $args ++= [ ($generation.arguments.name) ]
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    if (($generation.arguments | get --ignore-errors days) != null) {
+      $args ++= [ --days ($generation.arguments.days) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "nebula-cert" {
+    $args ++= [ ($generation.arguments.ca_public) ]
+    $args ++= [ ($generation.arguments.ca_private) ]
+    $args ++= [ ($generation.arguments.name) ]
+    $args ++= [ ($generation.arguments.ip) ]
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "cockroach-ca" {
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "cockroach-node-cert" {
+    $args ++= [ ($generation.arguments.ca_public) ]
+    $args ++= [ ($generation.arguments.ca_private) ]
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    $args ++= [ ($generation.arguments.hosts | str join ",") ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "cockroach-client-cert" {
+    $args ++= [ ($generation.arguments.ca_public) ]
+    $args ++= [ ($generation.arguments.ca_private) ]
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    $args ++= [ ($generation.arguments.user) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "tls-root" {
+    $args ++= [ ($generation.arguments.common_name) ]
+    $args ++= [ ($generation.arguments.organization) ]
+    $args ++= [ ($generation.arguments.config) ]
+    $args ++= [ ($generation.arguments.private) ]
+    $args ++= [ ($generation.arguments.public) ]
+    if (($generation.arguments | get --ignore-errors parhlen) != null) {
+      $args ++= [ --pathlen ($generation.arguments.pathlen) ]
+    }
+    if (($generation.arguments | get --ignore-errors days) != null) {
+      $args ++= [ --days ($generation.arguments.days) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "tls-intermediary" {
+    $args ++= [ $generation.arguments.common_name ]
+    $args ++= [ $generation.arguments.organization ]
+    $args ++= [ $generation.arguments.config ]
+    $args ++= [ $generation.arguments.request_config ]
+    $args ++= [ $generation.arguments.private ]
+    $args ++= [ $generation.arguments.request ]
+    $args ++= [ $generation.arguments.ca_public ]
+    $args ++= [ $generation.arguments.ca_private ]
+    $args ++= [ $generation.arguments.serial ]
+    $args ++= [ $generation.arguments.public ]
+    if (($generation.arguments | get --ignore-errors parhlen) != null) {
+      $args ++= [ --pathlen ($generation.arguments.pathlen) ]
+    }
+    if (($generation.arguments | get --ignore-errors days) != null) {
+      $args ++= [ --days ($generation.arguments.days) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "tls-leaf" {
+    $args ++= [ ($generation.arguments.common_name) ]
+    $args ++= [ ($generation.arguments.organization) ]
+    $args ++= [ ($generation.arguments.sans | str join ",") ]
+    $args ++= [ ($generation.arguments.config) ]
+    $args ++= [ ($generation.arguments.request_config) ]
+    $args ++= [ ($generation.arguments.private) ]
+    $args ++= [ ($generation.arguments.request) ]
+    $args ++= [ ($generation.arguments.ca_public) ]
+    $args ++= [ ($generation.arguments.ca_private) ]
+    $args ++= [ ($generation.arguments.serial) ]
+    $args ++= [ ($generation.arguments.public) ]
+    if (($generation.arguments | get --ignore-errors days) != null) {
+      $args ++= [ --days ($generation.arguments.days) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "tls-rsa-root" {
+    $args ++= [ ($generation.arguments.common_name) ]
+    $args ++= [ ($generation.arguments.organization) ]
+    $args ++= [ ($generation.arguments.config) ]
+    $args ++= [ ($generation.arguments.private) ]
+    $args ++= [ ($generation.arguments.public) ]
+    if (($generation.arguments | get --ignore-errors parhlen) != null) {
+      $args ++= [ --pathlen ($generation.arguments.pathlen) ]
+    }
+    if (($generation.arguments | get --ignore-errors days) != null) {
+      $args ++= [ --days ($generation.arguments.days) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "tls-rsa-intermediary" {
+    $args ++= [ $generation.arguments.common_name ]
+    $args ++= [ $generation.arguments.organization ]
+    $args ++= [ $generation.arguments.config ]
+    $args ++= [ $generation.arguments.request_config ]
+    $args ++= [ $generation.arguments.private ]
+    $args ++= [ $generation.arguments.request ]
+    $args ++= [ $generation.arguments.ca_public ]
+    $args ++= [ $generation.arguments.ca_private ]
+    $args ++= [ $generation.arguments.serial ]
+    $args ++= [ $generation.arguments.public ]
+    if (($generation.arguments | get --ignore-errors parhlen) != null) {
+      $args ++= [ --pathlen ($generation.arguments.pathlen) ]
+    }
+    if (($generation.arguments | get --ignore-errors days) != null) {
+      $args ++= [ --days ($generation.arguments.days) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "tls-rsa-leaf" {
+    $args ++= [ ($generation.arguments.common_name) ]
+    $args ++= [ ($generation.arguments.organization) ]
+    $args ++= [ ($generation.arguments.sans | str join ",") ]
+    $args ++= [ ($generation.arguments.config) ]
+    $args ++= [ ($generation.arguments.request_config) ]
+    $args ++= [ ($generation.arguments.private) ]
+    $args ++= [ ($generation.arguments.request) ]
+    $args ++= [ ($generation.arguments.ca_public) ]
+    $args ++= [ ($generation.arguments.ca_private) ]
+    $args ++= [ ($generation.arguments.serial) ]
+    $args ++= [ ($generation.arguments.public) ]
+    if (($generation.arguments | get --ignore-errors days) != null) {
+      $args ++= [ --days ($generation.arguments.days) ]
+    }
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "tls-dhparam" {
+    $args ++= [ ($generation.arguments.name) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "env" {
+    $args ++= [ ($generation.arguments.name) ]
+    $args ++= [ json ]
+    let variables = $"($generation.arguments.name)-variables"
+    $args ++= [ ($variables) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+      $generation.arguments.variables | to json | rumor save $variables true --public
+    } else {
+      $generation.arguments.variables | to json | rumor save $variables false --public
+    }
+  } else if $generation.generator == "moustache" {
+    $args ++= [ ($generation.arguments.name) ]
+    $args ++= [ json ]
+    let variables_and_template = $"($generation.arguments.name)-variables-and-template"
+    $args ++= [ ($variables_and_template) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+      {
+        variables: $generation.arguments.variables
+        template: $generation.arguments.template
+      } | to json | rumor save $variables_and_template true
+    } else {
+      {
+        variables: $generation.arguments.variables
+        template: $generation.arguments.template
+      } | to json | rumor save $variables_and_template false
+    }
+  } else if $generation.generator == "script" {
+    if not $allow_script {
+      rumor log --error "Running script generator not allowed. Please run with `--allow-script`"
+      exit 1
+    }
+    $args ++= [ ($generation.arguments.name) ]
+    $args ++= [ ($generation.arguments.text) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+    }
+  } else if $generation.generator == "sops" {
+    $args ++= [ ($generation.arguments.age) ]
+    $args ++= [ ($generation.arguments.public) ]
+    $args ++= [ ($generation.arguments.private) ]
+    $args ++= [ json ]
+    let secrets = $"($generation.arguments.private)-secrets"
+    $args ++= [ ($secrets) ]
+    if (($generation.arguments | get --ignore-errors renew) != null
+      and $generation.arguments.renew) {
+      $args ++= [ --renew ]
+      $generation.arguments.secrets | to json | rumor save $secrets true --public
+    } else {
+      $generation.arguments.secrets | to json | rumor save $secrets false --public
+    }
+  }
+
+  rumor exec module $"generate ($generator)" ...($args)
+}
+
+def "rumor run export" [export: any]: nothing -> nothing {
+  mut args = [ ]
+
+  if ($export.exporter == "vault") {
+    $args ++= [ ($export.arguments.path) ]
+  } else if ($export.exporter == "vault-file") {
+    $args ++= [ ($export.arguments.path) ]
+    $args ++= [ ($export.arguments.file) ]
+  } else if ($export.exporter == "copy") {
+    $args ++= [ ($export.arguments.from) ]
+    $args ++= [ ($export.arguments.to) ]
+  }
+
+  rumor exec module $"export ($export.exporter)" ...($args)
+}
+
+def "rumor create manifest" [
+  script: string,
+  schema: string,
+  commandline: string,
+  parsed_commandline: any,
+  specification: string,
+  specification_format: string,
+  phase: string,
+  error: any,
+  with_output: bool,
+  format: string
+]: nothing -> string {
+  let input =  {
+    script_text: $script
+    script_hash: ($script | hash sha256)
+    schema_text: $schema,
+    schema_hash: ($schema | hash sha256)
+    specification_text: $specification
+    specification_format: $specification_format
+    specification_hash: ($specification | hash sha256)
+    commandline: $commandline
+    parsed_commandline: ($parsed_commandline | to json)
+    commandline_hash: ($commandline | hash sha256)
+  }
+  let input = $input | insert hash ($input | rumor record hash)
+
+  mut manifest: any = null
+  if $with_output {
+    let output = {
+      files: (ls
+        | where {
+            not ($in.name
+              | path basename
+              | str starts-with rumor)
+          }
+        | sort-by name
+        | each {
+             {
+               name: $in.name
+               mode: (ls -la $in.name | get 0.mode)
+               size: $in.size
+               hash: (open --raw $in.name | hash sha256)
+             }
+          })
+    }
+    let output = $output | insert hash ($output | rumor record hash)
+
+    $manifest = {
+      version: $version
+      phase: $phase
+      error: $error
+      time: (rumor now)
+      input: $input
+      output: $output
+      format: $format
+    }
+  } else {
+    $manifest = {
+      version: $version
+      phase: $phase
+      error: $error
+      time: (rumor now)
+      input: $input
+      format: $format
+    }
+  }
+
+  $manifest
+}
+
+###############################################################################
+# GENERATOR FUNCTIONS
+###############################################################################
+
+def "rumor tls root" [
+  module: string,
+  algorithm: string,
+  options: string,
+  common_name: string,
+  organization: string,
+  config: path,
+  private: path,
+  public: path,
+  pathlen: int,
+  days: int,
+  renew: bool
+]: nothing -> nothing {
+  let basic_constraints = if $pathlen < 0 {
+    $"critical,CA:true"
+  } else {
+    $"critical,CA:true,pathlen:($pathlen)"
+  }
+
+  $"
+    [req]
+    default_md = sha256
+    distinguished_name = dn
+    x509_extensions = ext
+    prompt = no
+
+    [dn]
+    CN = ($common_name)
+    O = ($organization)
+
+    [ext]
+    basicConstraints = ($basic_constraints)
+    keyUsage = critical,keyCertSign,cRLSign
+    subjectKeyIdentifier = hash
+  " | str trim
+    | rumor dedent 4
+    | rumor save $config $renew --public
+
+  (rumor exec tool $module
+    openssl genpkey
+    -algorithm $algorithm
+    -pkeyopt $options
+    -quiet)
+    | rumor save $private $renew
+
+  (rumor exec tool $module
+    openssl req -x509
+    -key $private
+    -config $config
+    -days ($days | into string))
+    | rumor save $public $renew --public
+}
+
+def "rumor tls intermediary" [
+  module: string,
+  algorithm: string,
+  options: string,
+  common_name: string,
+  organization: string,
+  config: path,
+  request_config: path,
+  private: path,
+  request: path,
+  ca_public: path,
+  ca_private: path,
+  serial: path,
+  public: path,
+  pathlen: int,
+  days: int,
+  renew: bool
+]: nothing -> nothing {
+  let basic_constraints = if $pathlen < 0 {
+    $"critical,CA:true"
+  } else {
+    $"critical,CA:true,pathlen:($pathlen)"
+  }
+
+  $"
+    [req]
+    default_md = sha256
+    distinguished_name = dn
+    x509_extensions = ext
+    prompt = no
+
+    [dn]
+    CN = ($common_name)
+    O = ($organization)
+
+    [ext]
+    keyUsage = critical,keyCertSign,cRLSign
+    subjectKeyIdentifier = hash
+  " | str trim
+    | rumor dedent 4
+    | rumor save $config $renew --public
+
+  ((open --raw $request_config) + "\n" +
+  ($"
+    basicConstraints = ($basic_constraints)
+    authorityKeyIdentifier = keyid,issuer
+  " | str trim
+    | rumor dedent 4))
+    | rumor save $config $renew --public
+
+  (rumor exec tool $module
+    openssl genpkey
+    -algorithm $algorithm
+    -pkeyopt $options
+    -quiet)
+    | rumor save $private $renew
+
+  (rumor exec tool $module
+    openssl req -new
+    -key $private
+    -config $config
+    -quiet)
+    | rumor save $request $renew
+
+  let serial_args = if ($serial | path exists) {
+    cp $serial $"($serial)($tmp_suffix)"
+    [ -CAserial $"($serial)($tmp_suffix)" ]
+  } else {
+    [ -CAcreateserial -CAserial $"($serial)($tmp_suffix)" ]
+  }
+
+  (rumor exec tool $module
+    openssl x509 -req
+    -in $request
+    -CA $ca_public
+    -CAkey $ca_private
+    ...($serial_args)
+    -extfile $config
+    -extensions ext
+    -days ($days | into string))
+    | rumor save $public $renew --public
+
+  let serial_content = open --raw $"($serial)($tmp_suffix)"
+  rm -f $"($serial)($tmp_suffix)"
+  $serial_content | rumor save $serial $renew
+}
+
+def "rumor tls leaf" [
+  module: string,
+  algorithm: string,
+  options: string,
+  common_name: string,
+  organization: string,
+  sans: string,
+  config: path,
+  request_config: path,
+  private: path,
+  request: path,
+  ca_public: path,
+  ca_private: path,
+  serial: path,
+  public: path,
+  days: int,
+  renew: bool
+]: nothing -> nothing {
+  let key_usage = if ($algorithm == "RSA") {
+    "critical,digitalSignature,keyEncipherment"
+  } else {
+    "critical,digitalSignature"
+  }
+
+  let sans = $sans | split row ","
+
+  let ip_sans = $sans
+    | where { $in | rumor is ip }
+    | enumerate
+    | each { $"IP.($in.index + 1) = ($in.item)" }
+    | str join "\n"
+
+  let dns_sans = $sans
+    | where { not ($in | rumor is ip) }
+    | enumerate
+    | each { $"DNS.($in.index + 1) = ($in.item)" }
+    | str join "\n"
+
+  $"
+    [req]
+    default_md = sha256
+    distinguished_name = dn
+    req_extensions = ext
+    prompt = no
+
+    [dn]
+    CN = ($common_name)
+    O = ($organization)
+
+    [sans]
+    ($dns_sans)
+    ($ip_sans)
+
+    [ext]
+    keyUsage = ($key_usage)
+    extendedKeyUsage = serverAuth,clientAuth
+    subjectAltName = @sans
+    subjectKeyIdentifier = hash
+  " | str trim
+    | rumor dedent 4
+    | rumor save $request_config $renew --public
+
+  ((open --raw $request_config) + "\n" +
+  ($"
+    basicConstraints = critical,CA:false
+    authorityKeyIdentifier = keyid,issuer
+  " | str trim
+    | rumor dedent 4))
+    | rumor save $config $renew --public
+
+  (rumor exec tool $module
+    openssl genpkey
+    -algorithm $algorithm
+    -pkeyopt $options
+    -quiet)
+    | rumor save $private $renew
+
+  (rumor exec tool $module
+    openssl req -new
+    -key $private
+    -config $request_config
+    -quiet)
+    | rumor save $request $renew
+
+  let serial_args = if ($serial | path exists) {
+    cp $serial $"($serial)($tmp_suffix)"
+    [ -CAserial $"($serial)($tmp_suffix)" ]
+  } else {
+    [ -CAcreateserial -CAserial $"($serial)($tmp_suffix)" ]
+  }
+
+  (rumor exec tool $module
+    openssl x509 -req
+    -in $request
+    -CA $ca_public
+    -CAkey $ca_private
+    ...($serial_args)
+    -extfile $config
+    -extensions ext
+    -days ($days | into string))
+    | rumor save $public $renew --public
+
+  let serial_content = open --raw $"($serial)($tmp_suffix)"
+  rm -f $"($serial)($tmp_suffix)"
+  $serial_content | rumor save $serial $renew
+}
+
+def "rumor secure random alnum" [module: string, length: int]: nothing -> string {
+  mut out = ""
+  while ($out | str length) < $length {
+    let need = $length - ($out | str length)
+    let batch = (rumor exec tool $module
+      openssl rand -base64 ([ ($need * 2) 32 ] | math max ))
+      | str replace -a -r '[^A-Za-z0-9]' ''
+      | split row ""
+      | skip 1
+      | take $need
+      | str join ""
+    $out += $batch
+  }
+  $out
+}
+
+def "rumor secure random digits" [module: string, length: int]: nothing -> string {
+  mut out = ""
+  while ($out | str length) < $length {
+    let need = $length - ($out | str length)
+    let batch = (rumor exec tool $module
+      openssl rand -base64 ([ ($need * 2) 32 ] | math max ))
+      | str replace -a -r '[^0-9]' ''
+      | split row ""
+      | skip 1
+      | take $need
+      | str join ""
+    $out += $batch
+  }
+  $out
+}
+
+###############################################################################
+# FILESYSTEM FUNCTIONS
+###############################################################################
+
+def "rumor purge workdir" []: nothing -> nothing {
+  ls -a | each { rm -rf $in.name }
+  return
+}
+
+def "rumor mktemp" [path: string, --directory, --suffix = ""]: nothing -> path {
+  if $directory {
+    let result = mktemp -t --suffix $suffix -d $"rumor-($path)-XXXX"
+    chmod 700 $result
+    $result
+  } else {
+    let result = mktemp -t --suffix $suffix $"rumor-($path)-XXXX"
+    chmod 600 $result
+    return $result
+  }
+}
+
+def "rumor save" [path: path, renew: bool, --public]: string -> nothing {
+  $in | save -f $"($path)($tmp_suffix)"
+  if $renew {
+    mv -f $"($path)($tmp_suffix)" $path
+  } else {
+    try { mv -n $"($path)($tmp_suffix)" $path }
+  }
+  rm -f $"($path)($tmp_suffix)"
+  if ($public) {
+    chmod 644 $path
+  } else {
+    chmod 600 $path
+  }
+}
+
+###############################################################################
+# LOGGING FUNCTIONS
+###############################################################################
+
+def --wrapped "rumor exec module" [
+  module: string,
+  ...args: string
+]: nothing -> nothing {
+  let verbose = $env.__RUMOR_VERBOSE? | is-not-empty
+
+  let args = $args
+    | each { into string }
+    | each {
+        if (($in | str contains " ")
+          or $in == "false"
+          or $in == "true"
+          or $in == "null") {
+          $"`($in)`"
+        } else {
+          $in
+        }
+      }
+    | str join " "
+
+  let result = (try { nu -c $"exec nu ($main) ($module) ($args)" }
+    | complete)
+
+  if $result.exit_code != 0 {
+    let message = ($"module '($module)' with args '($args)'"
+      + $" exited with '($result.exit_code)'")
+    $result.stderr |
+      (rumor log
+        --module $module
+        --error $message)
+    error make { msg: $message }
+  }
+
+  if $verbose {
+    $result.stderr |
+      (rumor log
+        --module $module
+        --message $"called '($module)' with args '($args)'")
+  }
+}
+
+def --wrapped "rumor exec tool" [
+  module: string,
+  tool: string,
+  ...args: string
+]: [
+  string -> string,
+  string -> nothing,
+  nothing -> string,
+  nothing -> nothing
+] {
+  let very_verbose = $env.__RUMOR_VERY_VERBOSE? | is-not-empty
+
+  let stdin = $in
+  let args = $args
+    | each { into string }
+    | each {
+        if (($in | str contains " ")
+          or $in == "false"
+          or $in == "true"
+          or $in == "null") {
+          $"`($in)`"
+        } else {
+          $in
+        }
+      }
+    | str join " "
+
+  let result = if ($stdin | str trim | is-not-empty) {
+    try { $stdin | nu --stdin -c $"exec ($tool) ($args)"  }
+      | complete
+  } else {
+    try { nu -c $"exec ($tool) ($args)" }
+      | complete
+  }
+
+  if $result.exit_code != 0 {
+    let message = ($"tool '($tool)' with args '($args)'"
+      + $" exited with '($result.exit_code)'")
+    $result.stderr |
+      (rumor log
+        --module $module
+        --error $message)
+    error make { msg: $message }
+  }
+
+  if $very_verbose {
+    $result.stderr |
+      (rumor log
+        --module $module
+        --message $"called '($tool)' with args '($args)'")
+  }
+
+  return $result.stdout
+}
+
+def "rumor log" [
+  --error: string = "",
+  --message: string = "",
+  --module: string = "rumor",
+  --debug: string = ""
+]: nothing -> nothing, string -> nothing {
+  let time = rumor now
+
+  mut stdin = $in
+  let has_stdin = $stdin | str trim | is-not-empty
+  $stdin = if $has_stdin { $stdin | rumor indent 2 } else { "" }
+
+  if ($debug | str trim | is-not-empty) {
+    if $has_stdin {
+      print --stderr $"[($time)][DEBUG]: ($debug)\n($stdin)"
+    } else {
+      print --stderr $"[($time)][DEBUG]: ($debug)"
+    }
+  } else if ($error | str trim | is-not-empty) {
+    if $has_stdin {
+      print --stderr $"[($time)][($module)]: ($error)\n($stdin)"
+    } else {
+      print --stderr $"[($time)][($module)]: ($error)"
+    }
+  } else if ($message | str trim | is-not-empty) {
+    if $has_stdin {
+      print $"[($time)][($module)]: ($message)\n($stdin)"
+    } else {
+      print $"[($time)][($module)]: ($message)"
+    }
+  }
+}
+
+###############################################################################
+# FORMAT FUNCTIONS
+###############################################################################
+
+def "rumor format read" [path: path, format?: string]: nothing -> any {
+  mut format = $format
+  if ($format | str trim | is-not-empty) {
+    if not (rumor format valid $format) {
+      return null
+    }
+  } else {
+    $format = (rumor format detect $path)
+    if ($format | is-empty) {
+      return null
+    }
+  }
+
+  open --raw $path | rumor format deserialize $format
+}
+
+def "rumor format write" [path: path, format: string, --renew, --public]: any -> nothing {
+  if not (rumor format valid $format) {
+    return
+  }
+
+  let serialized = $in | rumor format serialize $format
+  if $public {
+    $serialized | rumor save $path $renew --public
+    $format | rumor save $"($path)-format" $renew --public
+  } else {
+    $serialized | rumor save $path $renew
+    $format | rumor save $"($path)-format" $renew
+  }
+}
+
+def "rumor format detect" [path: path]: nothing -> string {
+  let format = if ($"($path)-format" | path exists) {
+    open --raw $"($path)-format"
+  } else {
+    $path | path parse | get extension
+  }
+
+  if not (rumor format valid $format) {
+    return ""
+  }
+  return $format
+}
+
+def "rumor format valid" [format: string]: nothing -> bool {
+  if ($format in [ "json" "yaml" "yml" "toml" ]) {
+    return true
+  }
+
+  return false
+}
+
+def "rumor format deserialize" [format: string]: string -> any {
+  if $format == "json" {
+    $in | from json
+  } else if $format == "yaml" {
+    $in | from yaml
+  } else if $format == "yml" {
+    $in | from yaml
+  } else if $format == "toml" {
+    $in | from toml
+  } else {
+    return null
+  }
+}
+
+def "rumor format serialize" [format: string]: any -> string {
+  if $format == "json" {
+    $in | to json
+  } else if $format == "yaml" {
+    $in | to yaml
+  } else if $format == "yml" {
+    $in | to yaml
+  } else if $format == "toml" {
+    $in | to toml
+  } else {
+    return ""
+  }
+}
+
+###############################################################################
+# MISCELLANEOUS FUNCTIONS
+###############################################################################
+
+def "rumor now" []: nothing -> string {
+  date now | format date $timestamp_format
+}
+
+def "rumor vault now" []: nothing -> string {
+  date now | format date $vault_timestamp_format
+}
+
+def "rumor decode if bytes" []: any -> string {
   if ($in | describe) == "string" {
     $in
   } else {
@@ -1144,10 +2471,59 @@ def "decode if bytes" []: any -> string {
   }
 }
 
-def "escape string" []: string -> string {
+def "rumor escape env string" []: string -> string {
   $in
-    | str trim
     | str replace -a "\\" "\\\\"
-    | str replace -a "\n" "\\n"
     | str replace -a "\"" "\\\""
+    | str replace -a "\n" "\\n"
+    | str replace -a "\r" "\\r"
+    | str trim
+}
+
+def "rumor escape arg string" []: string -> string {
+  $in
+    | str replace -a "\\" "\\\\"
+    | str replace -a "\"" "\\\""
+    | str replace -a "\n" "\\n"
+    | str replace -a "\r" "\\r"
+    | str trim
+}
+
+def "rumor record hash" []: record -> string {
+  transpose key value
+    | sort-by key
+    | to json -r
+    | hash sha256
+}
+
+def "rumor indent" [amount: int]: string -> string {
+  let indent = 1..($amount)
+    | each { " " }
+    | str join ""
+
+  $in
+    | split row "\n"
+    | each { $indent + $in }
+    | str join "\n"
+}
+
+def "rumor dedent" [amount: int]: string -> string {
+  let indent = 1..($amount)
+    | each { " " }
+    | str join ""
+
+  $in
+    | split row "\n"
+    | each {
+        if ($in | str starts-with $indent) {
+          ($in | parse --regex $"($indent)\(.*\)").0.capture0
+        } else {
+          $in | str trim --left
+        }
+      }
+    | str join "\n"
+}
+
+def "rumor is ip" []: string -> bool {
+  ($in | parse --regex $ip_regex).0?.capture0? == $in
 }

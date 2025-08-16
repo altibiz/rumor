@@ -1,5 +1,8 @@
-{ lib, pkgs, ... }:
+{ self, pkgs, ... }:
 
+let
+  buildInputs = self.lib.rumor.mkBuildInputs pkgs;
+in
 {
   integrate.nixpkgs.config = {
     allowUnfree = true;
@@ -11,59 +14,16 @@
     VAULT_ADDR = "http://127.0.0.1:8202";
     VAULT_TOKEN = "root";
 
+    inputsFrom = [
+      (self.lib.shells.mkShell pkgs)
+      (self.lib.shells.mkToolShell pkgs)
+      (self.lib.shells.mkTestShell pkgs)
+    ];
+
+    inherit buildInputs;
+
     packages = with pkgs; [
-      # version control
-      git
-
-      # scripts
-      nushell
-      just
-
-      # nix
-      nil
-      nixpkgs-fmt
-      nixVersions.stable
-
-      # markdown
-      markdownlint-cli
-      nodePackages.markdown-link-check
-
-      # documentation
-      simple-http-server
       mdbook
-
-      # spelling
-      nodePackages.cspell
-
-      # tools
-      pueue
-      gum
-      delta
-      fd
-      coreutils
-
-      # inputs
-      nlohmann_json_schema_validator
-      age
-      sops
-      nebula
-      openssl
-      mkpasswd
-      mo
-      openssh
-      vault
-      vault-medusa
-    ] ++ (lib.optionals pkgs.hostPlatform.isLinux [
-      cockroachdb
-    ]) ++ [
-
-      # misc
-      vscode-langservers-extracted
-      nodePackages.prettier
-      nodePackages.yaml-language-server
-      taplo
-    ] ++ (lib.optionals pkgs.hostPlatform.is64bit [
-      marksman
-    ]);
+    ];
   };
 }

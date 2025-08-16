@@ -9,13 +9,13 @@ default:
 format:
     cd '{{ root }}'; just --unstable --fmt
     prettier --write '{{ root }}'
-    nixpkgs-fmt '{{ root }}'
+    nixfmt ...(fd '.*.nix$' '{{ root }}' | lines)
 
 lint:
     cd '{{ root }}'; just --unstable --fmt --check
     prettier --check '{{ root }}'
     cspell lint '{{ root }}' --no-progress
-    nixpkgs-fmt --check '{{ root }}'
+    nixfmt --check ...(fd '.*.nix$' '{{ root }}' | lines)
     markdownlint '{{ root }}'
     markdown-link-check \
       --config .markdown-link-check.json \
@@ -23,9 +23,6 @@ lint:
       ...(fd '.*.md' | lines)
     nix flake check --all-systems
     @just test-all
-
-upgrade:
-    nix flake update
 
 test-clean *args:
     nu -c '{{ root }}/scripts/test.nu stop {{ args }}'

@@ -24,6 +24,7 @@ words:
   - acreateserial
   - yescrypt
   - nixpkgs
+  - nixfmt
   - pueue
   - pueued
   - mktemp
@@ -38,3 +39,4 @@ words:
   - diffie
   - pkeyopt
   - paramgen
+  - libargon

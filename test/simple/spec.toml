@@ -1,7 +1,7 @@
 #:schema ../../src/schema.json
 [[imports]]
 importer = "vault"
-arguments.path = "secret/id"
+arguments.path = "secret/simple"
 arguments.allow_fail = true
 
 [[imports]]
@@ -12,7 +12,7 @@ arguments.allow_fail = true
 
 [[exports]]
 exporter = "vault"
-arguments.path = "secret/id"
+arguments.path = "secret/simple"
 
 [[exports]]
 exporter = "vault-file"
@@ -47,7 +47,7 @@ arguments.name = "pin"
 arguments.length = 4
 
 [[generations]]
-generator = "mkpasswd"
+generator = "password"
 
 [generations.arguments]
 private = "pass-priv"
@@ -56,7 +56,16 @@ length = 7
 renew = true
 
 [[generations]]
-generator = "ssh-keygen"
+generator = "password-crypt-3"
+
+[generations.arguments]
+private = "pass-crypt-priv"
+public = "pass-crypt-pub"
+length = 7
+renew = true
+
+[[generations]]
+generator = "ssh-key"
 
 [generations.arguments]
 name = "ssh"
@@ -65,7 +74,7 @@ private = "ssh-priv"
 renew = true
 
 [[generations]]
-generator = "age"
+generator = "age-key"
 
 [generations.arguments]
 public = "age.txt.pub"
@@ -88,5 +97,7 @@ key = "key"
 pin = "pin"
 pass-pub = "pass-pub"
 pass-priv = "pass-priv"
+pass-crypt-pub = "pass-crypt-pub"
+pass-crypt-priv = "pass-crypt-priv"
 ssh-pub = "ssh-pub"
 ssh-priv = "ssh-priv"

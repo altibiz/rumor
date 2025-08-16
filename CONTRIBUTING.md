@@ -32,4 +32,6 @@ For release pull requests please make sure to:
 - read this file
 - modify `CHANGELOG.md` by moving `Unreleased` changes into a new release
   heading
+- bump version in `scripts/flake/rumor.nix`
+- bump dev version in `src/main.nu`
 - add an appropriate GitHub tag

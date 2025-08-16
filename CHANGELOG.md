@@ -7,7 +7,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
-## [2.0.1] - 2025-05-24
+## [3.0.3] - 2025-08-17
+
+## [2.0.2] - 2025-05-24
 
 ## Changed
 
@@ -101,6 +103,7 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - initial script, package, documentation and tests
 
+[2.0.2]: https://github.com/altibiz/rumor/compare/2.0.1...2.0.2
 [2.0.1]: https://github.com/altibiz/rumor/compare/2.0.0...2.0.1
 [2.0.0]: https://github.com/altibiz/rumor/compare/1.3.1...2.0.0
 [1.3.1]: https://github.com/altibiz/rumor/compare/1.3.0...1.3.1

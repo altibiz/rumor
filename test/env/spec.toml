@@ -31,7 +31,7 @@ ID2 = "id2"
 CUSTOM = "custom"
 
 [[generations]]
-generator = "age"
+generator = "age-key"
 
 [generations.arguments]
 public = "age.txt.pub"
