@@ -5,37 +5,50 @@ The following are all available exporters in Rumor. The type corresponds to the
 
 ## Copy
 
-Uses `cp -f` to copy a file.
+Copies a file overwriting destination if exists.
 
 - Type: `copy`
 - Arguments:
-  - `from` (`path`): From where to copy the file.
-  - `to` (`path`): Where to put the file.
+  - `from` (`path`): Source file to copy.
+  - `to` (`path`): Destination path.
 
 ## Vault
 
-Uses [`medusa`] to export multiple files to [Vault].
+Exports all files in the current directory into a [Vault] KV store twice:
+
+- once to <path>/current
+- once to <path>/<timestamp>
 
 - Type: `vault`
 - Arguments:
-  - `path` (`string`): [Vault] path where to export files to. The `path` will
-    get suffixed with a `current` key and a numeric key containing the current
-    timestamp to allow Rumor to save multiple versions of the same secrets.
+  - `path` (`string`): Base KV path. Leading/trailing slashes are trimmed.
+
+Behavior:
+
+- Reads all entries from the working directory (ls).
+- For each file: key = basename, value = file contents (raw, trimmed).
+- Emits a YAML map, then pipes it to:
+  - [`medusa`] import <path>/current -
+  - [`medusa`] import <path>/<timestamp> -
+- Overwrites keys on the "current" path; timestamped path is append-only by
+  nature.
+
+Notes:
+
+- Only top-level files are considered (no recursion).
+- Binary files will be read raw and trimmed; stick to text files.
 
 ## Vault file
 
-Uses [Vault] CLI to export a single file to [Vault].
+Sends one file’s contents into [Vault] KV:
 
-- Type: `vault`
+- writes to <path>/current
+- also snapshots to <path>/<timestamp>
+
+- Type: `vault-file`
 - Arguments:
-  - `path` (`string`): [Vault] path where to export files to. The `path` will
-    get suffixed with a `current` key and a numeric key containing the current
-    timestamp to allow Rumor to save multiple versions of the same secrets. If
-    the `path` is already present it patches the current file and makes a new
-    timestamped version of the whole `path`. If the file is not present, it
-    makes a new secret at `path` with current and timestamped suffixes for
-    versioning.
-  - `file` (`string`): Key of the file to export.
+  - `path` (`string`): Base KV path. Slashes trimmed.
+  - `file` (`string`): Local file whose content becomes the value.
 
 [`medusa`]: https://github.com/jonasvinther/medusa
 [Vault]: https://www.vaultproject.io/
