@@ -512,10 +512,15 @@ def "main from-manifest" [
 # IMPORTERS
 ###############################################################################
 
+# copy a file from one path to another
 def "main import copy" [
+  # from where to copy the file
   from: path,
+  # where to put the file
   to: path,
+  # allow failing to copy if source missing
   --allow-fail,
+  # overwrite destination if it exists
   --renew
 ]: nothing -> nothing {
   let content = if $allow_fail and not ($from | path exists) {
@@ -527,9 +532,13 @@ def "main import copy" [
   $content | rumor save $to $renew
 }
 
+# import files from a medusa vault path
 def "main import vault" [
+  # vault path to export from
   path: string,
+  # allow failing to import if source missing or command fails
   --allow-fail,
+  # overwrite destination files if they exist
   --renew
 ]: nothing -> nothing {
   let trimmed_path = $path | str trim --char '/'
@@ -561,10 +570,15 @@ def "main import vault" [
   }
 }
 
+# import a single file from a vault path
 def "main import vault-file" [
+  # vault path to load from
   path: string,
+  # file key to extract
   file: string,
+  # allow failing to load if source missing or command fails
   --allow-fail,
+  # overwrite destination file if it exists
   --renew
 ]: nothing -> nothing {
   let trimmed_path = $path | str trim --char '/'
@@ -602,27 +616,41 @@ def "main import vault-file" [
 # GENERATORS
 ###############################################################################
 
+# copy a file as part of generation
 def "main generate copy" [
+  # source file path
   from: path,
+  # destination file path
   to: path,
+  # overwrite destination if it exists
   --renew
 ]: nothing -> nothing {
   open --raw $from | rumor save $to $renew
 }
 
+# write a text file as part of generation
 def "main generate text" [
+  # destination file name
   name: path,
+  # text content to write
   text: string,
+  # overwrite destination if it exists
   --renew
 ]: nothing -> nothing {
   $text | rumor save $name $renew
 }
 
+# generate a data file by converting between formats
 def "main generate data" [
+  # destination file name
   name: path,
+  # input data format
   in_format: string,
+  # source data path
   data: path,
+  # output data format
   out_format: string,
+  # overwrite destination if it exists
   --renew
 ]: nothing -> nothing {
   if not (rumor format valid $in_format) {
@@ -649,37 +677,54 @@ def "main generate data" [
   $out_format | rumor save $"($name)($format_suffix)" $renew
 }
 
+# generate a numeric PIN and save it
 def "main generate pin" [
+  # destination file name
   name: path,
+  # number of digits in the PIN
   --length: int = 8
+  # overwrite destination if it exists
   --renew
 ]: nothing -> nothing {
   let pin = rumor secure random digits "generate pin" $length
   $pin | rumor save $name $renew
 }
 
+# generate a random alphanumeric key and save it
 def "main generate key" [
+  # destination file name
   name: path,
+  # number of characters in the key
   --length: int = 32,
+  # overwrite destination if it exists
   --renew
 ]: nothing -> nothing {
   let id = rumor secure random alnum "generate key" $length
   $id | rumor save $name $renew
 }
 
+# generate a random alphanumeric id and save it
 def "main generate id" [
+  # destination file name
   name: path,
+  # number of characters in the id
   --length: int = 16,
+  # overwrite destination if it exists
   --renew
 ]: nothing -> nothing  {
   let id = rumor secure random alnum "generate id" $length
   $id | rumor save $name $renew
 }
 
+# generate a random password, save plaintext + hashed
 def "main generate password" [
+  # path to save the hashed (public) password
   public: path,
+  # path to save the plaintext (private) password
   private: path,
+  # number of characters in the password
   --length: int = 8,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   let pass = rumor secure random alnum "generate password" $length
@@ -692,10 +737,15 @@ def "main generate password" [
   $encrypted | rumor save $public $renew --public
 }
 
+# generate a random password, save plaintext + yescrypt hash
 def "main generate password-crypt-3" [
+  # path to save the hashed (public) password
   public: path,
+  # path to save the plaintext (private) password
   private: path,
+  # number of characters in the password
   --length: int = 8,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   let pass = (rumor secure random alnum
@@ -709,9 +759,13 @@ def "main generate password-crypt-3" [
   $encrypted | rumor save $public $renew --public
 }
 
+# generate an age keypair and save public + private
 def "main generate age-key" [
+  # path to save the public key (string path is fine)
   public: string,
+  # path to save the private key
   private: string,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   let private_content = (rumor exec tool "generate age-key"
@@ -724,11 +778,17 @@ def "main generate age-key" [
   $public_content | rumor save $public $renew --public
 }
 
+# generate an SSH keypair and save public + private
 def "main generate ssh-key" [
+  # key comment (e.g., email or host)
   name: string,
+  # path to save the public key
   public: path,
+  # path to save the private key
   private: path,
+  # passphrase file path (empty for no passphrase)
   --password: string = "",
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   mut password = $password
@@ -755,11 +815,17 @@ def "main generate ssh-key" [
   $public_content | rumor save $public $renew --public
 }
 
+# split a key into Shamir Shares and save them
 def "main generate key-split" [
+  # path to the source key file (raw content is split)
   key: string,
+  # filename prefix for each generated share
   prefix: string,
+  # minimum number of shares required to reconstruct
   threshold: int,
+  # total number of shares to generate
   shares: int,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   let shares = open --raw $key
@@ -776,10 +842,15 @@ def "main generate key-split" [
   }
 }
 
+# combine Shamir Shares back into a single key
 def "main generate key-combine" [
+  # comma-separated list of share file paths (e.g., "share-0,share-1,share-3")
   shares: string,
+  # path to save the reconstructed key
   key: string,
+  # number of shares required to reconstruct (must match split threshold)
   threshold: int,
+  # overwrite destination if it exists
   --renew
 ]: nothing -> nothing {
   let shares = $shares
@@ -794,14 +865,23 @@ def "main generate key-combine" [
   $value | rumor save $key $renew
 }
 
+# generate a TLS Root CA (private key + self-signed cert)
 def "main generate tls-root" [
+  # Common Name for the Root CA (e.g., "Sarah Root CA")
   common_name: string,
+  # Organization (e.g., "Green Energy Devs")
   organization: string,
+  # path to write the openssl config it generates
   config: path,
+  # path to save the private key
   private: path,
+  # path to save the root certificate (public)
   public: path,
+  # allowed intermediate depth (use -1 for unlimited)
   --pathlen: int = 1,
+  # certificate validity in days
   --days: int = 3650,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   (rumor tls root
@@ -818,19 +898,33 @@ def "main generate tls-root" [
     $renew)
 }
 
+# issue an Intermediate CA (key + CSR + signed cert)
 def "main generate tls-intermediary" [
+  # Common Name for the Intermediate CA
   common_name: string,
+  # Organization
   organization: string,
+  # path to write the merged OpenSSL config (ext + req)
   config: path,
+  # path to save the intermediate private key
   private: path,
+  # path to save the CSR
   request: path,
+  # path to read base request config (will be extended)
   request_config: path,
+  # Root CA cert (public)
   ca_public: path,
+  # Root CA key (private)
   ca_private: path,
+  # serial file to track issued cert serials
   serial: path,
+  # path to save the signed intermediate cert (public)
   public: path,
+  # allowed subordinate depth (use -1 for unlimited)
   --pathlen: int = 0,
+  # certificate validity in days
   --days: int = 3650,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   (rumor tls intermediary
@@ -852,19 +946,33 @@ def "main generate tls-intermediary" [
     $renew)
 }
 
+# issue a Leaf cert (key + CSR + signed cert)
 def "main generate tls-leaf" [
+  # Common Name for the certificate
   common_name: string,
+  # Organization
   organization: string,
+  # comma-separated SANs (e.g., "example.com,www.example.com,10.0.0.1")
   sans: string,
+  # path to write the final OpenSSL ext config
   config: path,
+  # path to write the CSR req config (will be created)
   request_config: path,
+  # path to save the private key
   private: path,
+  # path to save the CSR
   request: path,
+  # Issuer cert (public)
   ca_public: path,
+  # Issuer key (private)
   ca_private: path,
+  # serial file to track issued cert serials
   serial: path,
+  # path to save the signed cert (public)
   public: path,
+  # validity in days
   --days: int = 3650,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   (rumor tls leaf
@@ -886,14 +994,23 @@ def "main generate tls-leaf" [
     $renew)
 }
 
+# issue a ROOT CA (key + self-signed cert)
 def "main generate tls-rsa-root" [
+  # Common Name for the Root CA
   common_name: string,
+  # Organization
   organization: string,
+  # path to write the OpenSSL ext config
   config: path,
+  # path to save the root private key
   private: path,
+  # path to save the self-signed root cert (public)
   public: path,
+  # allowed subordinate depth (use -1 for unlimited)
   --pathlen: int = 1,
+  # certificate validity in days
   --days: int = 3650,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   (rumor tls root
@@ -910,19 +1027,33 @@ def "main generate tls-rsa-root" [
     $renew)
 }
 
+# issue a RSA Intermediate CA (key + CSR + signed cert)
 def "main generate tls-rsa-intermediary" [
+  # Common Name for the Intermediate CA
   common_name: string,
+  # Organization
   organization: string,
+  # path to write the merged OpenSSL config (ext + req)
   config: path,
+  # path to write the request config (will be created/overwritten)
   request_config: path,
+  # path to save the Intermediate private key
   private: path,
+  # path to save the CSR
   request: path,
+  # Root/Issuer cert (public)
   ca_public: path,
+  # Root/Issuer key (private)
   ca_private: path,
+  # serial file to track issued cert serials
   serial: path,
+  # path to save the signed intermediate cert (public)
   public: path,
+  # allowed subordinate depth (use -1 for unlimited)
   --pathlen: int = 0,
+  # certificate validity in days
   --days: int = 3650,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   (rumor tls intermediary
@@ -944,19 +1075,33 @@ def "main generate tls-rsa-intermediary" [
     $renew)
 }
 
+# issue a RSA Leaf cert (key + CSR + signed cert)
 def "main generate tls-rsa-leaf" [
+  # Common Name for the certificate (e.g., domain)
   common_name: string,
+  # Organization
   organization: string,
+  # Subject Alternative Names, comma-separated (e.g., "example.com,www.example.com,10.0.0.1")
   sans: string,
+  # path to write the merged OpenSSL config (ext + req)
   config: path,
+  # path to write the request config (will be created/overwritten)
   request_config: path,
+  # path to save the private key
   private: path,
+  # path to save the CSR
   request: path,
+  # Issuer cert (Intermediate or Root)
   ca_public: path,
+  # Issuer key (matching private key)
   ca_private: path,
+  # serial file to track issued cert serials
   serial: path,
+  # path to save the signed leaf certificate (public)
   public: path,
+  # certificate validity in days
   --days: int = 3650,
+  # overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   (rumor tls leaf
@@ -978,8 +1123,11 @@ def "main generate tls-rsa-leaf" [
     $renew)
 }
 
+# generate OpenSSL Diffie-Hellman parameters (dhparam)
 def "main generate tls-dhparam" [
+  # Path to save the DH parameters file
   name: path,
+  # Overwrite destination if it exists
   --renew
 ]: nothing -> nothing {
   let dhparam = (rumor exec tool "generate tls-dhparam"
@@ -987,11 +1135,17 @@ def "main generate tls-dhparam" [
   $dhparam | rumor save $name $renew
 }
 
+# generate a Nebula CA (certificate + key)
 def "main generate nebula-ca" [
+  # Common name for the Nebula CA
   name: string,
+  # Path to save the CA certificate
   public: path,
+  # Path to save the CA private key
   private: path,
+  # Certificate validity in days
   --days: int = 3650,
+  # Overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   (rumor exec tool "generate nebula-ca"
@@ -1009,13 +1163,21 @@ def "main generate nebula-ca" [
   $private_content | rumor save $private $renew
 }
 
+# generate a Nebula node certificate (signed by a Nebula CA)
 def "main generate nebula-cert" [
+  # Path to the Nebula CA certificate (public)
   ca_public: path,
+  # Path to the Nebula CA private key
   ca_private: path,
+  # Common name for the node cert
   name: string,
+  # Node IP in CIDR or IP form (e.g., "10.1.1.5/24" or "10.1.1.5")
   ip: string,
+  # Output path for the node certificate
   public: path,
+  # Output path for the node private key
   private: path,
+  # Overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   (rumor exec tool "generate nebula-cert"
@@ -1035,9 +1197,13 @@ def "main generate nebula-cert" [
   $private_content | rumor save $private $renew
 }
 
+# generate a CockroachDB CA (certificate + key)
 def "main generate cockroach-ca" [
+  # Output path for the CA certificate
   public: path,
+  # Output path for the CA private key
   private: path,
+  # Overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   rm -rf $"cockroach($tmp_suffix)"
@@ -1054,12 +1220,19 @@ def "main generate cockroach-ca" [
   $private_content | rumor save $private $renew
 }
 
+# generate a CockroachDB node certificate (signed by CockroachDB CA)
 def "main generate cockroach-node-cert" [
+  # Path to the CockroachDB CA certificate
   ca_public: path,
+  # Path to the CockroachDB CA private key
   ca_private: path,
+  # Output path for the node certificate
   public: path,
+  # Output path for the node private key
   private: path,
+  # Comma-separated hostnames/IPs for the node cert SANs
   hosts: string,
+  # Overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   rm -rf $"cockroach($tmp_suffix)"
@@ -1079,12 +1252,19 @@ def "main generate cockroach-node-cert" [
   $private_content | rumor save $private $renew
 }
 
+# generate a CockroachDB client certificate (for a specific user)
 def "main generate cockroach-client-cert" [
+  # Path to the CockroachDB CA certificate
   ca_public: path,
+  # Path to the CockroachDB CA private key
   ca_private: path,
+  # Output path for the client certificate
   public: path,
+  # Output path for the client private key
   private: path,
+  # CockroachDB username for the client cert
   user: string,
+  # Overwrite destinations if they exist
   --renew
 ]: nothing -> nothing {
   rm -rf $"cockroach($tmp_suffix)"
@@ -1106,10 +1286,15 @@ def "main generate cockroach-client-cert" [
   $private_content | rumor save $private $renew
 }
 
+# generate an environment (.env-style) file
 def "main generate env" [
+  # Where to save the environment file
   name: string,
+  # Input format of `vars` (e.g., "json", "yaml", "toml")
   format: string,
+  # Variables as a serialized string in the given format
   vars: string,
+  # Overwrite destination if it exists
   --renew
 ]: string -> nothing {
   let vars = rumor format read $vars $format
@@ -1140,10 +1325,15 @@ def "main generate env" [
   $vars | rumor save $name $renew
 }
 
+# generate a populated Mustache template
 def "main generate moustache" [
+  # Base name where outputs are saved
   name: string,
+  # Input format of the combined file ("json", "yaml", "toml")
   format: string,
+  # Path to a file containing { template, variables }
   variables_and_template: path,
+  # Overwrite destination(s) if they exist
   --renew
 ]: string -> nothing {
   let variables_and_template = (rumor format read
@@ -1181,9 +1371,13 @@ def "main generate moustache" [
     | rumor save $name $renew
 }
 
+# generate and run a Nushell script
 def "main generate script" [
+  # Where to save the script
   name: string,
+  # Script contents
   text: string,
+  # Overwrite destination if it exists
   --renew
 ]: string -> nothing {
   $text | rumor save $name $renew
@@ -1191,12 +1385,19 @@ def "main generate script" [
     nu $name $renew)
 }
 
+# generate SOPS-encrypted secrets from key-value inputs
 def "main generate sops" [
+  # Path to a file containing the Age recipient(s)
   age: string,
+  # Where to save the encrypted secrets (SOPS YAML)
   public: string,
+  # Where to save the plaintext secrets (YAML)
   private: string,
+  # Input format for `secrets` ("json", "yaml", "toml")
   format: string,
+  # Path to a file containing the secrets object (values or file paths)
   values: path,
+  # Overwrite destinations if they exist
   --renew
 ]: string -> nothing {
   let values = rumor format read $values $format
@@ -1233,14 +1434,19 @@ def "main generate sops" [
 # EXPORTERS
 ###############################################################################
 
+# copy a file from A to B
 def "main export copy" [
+  # Source file path
   from: path,
+  # Destination file path
   to: path
 ]: nothing -> nothing {
   cp -f $from $to
 }
 
+# export current directory as a Vault KV snapshot (current + timestamped)
 def "main export vault" [
+  # Base vault path (e.g., "kv/my-app")
   path: string
 ]: nothing -> nothing {
   let trimmed_path = $path | str trim --char '/'
@@ -1265,8 +1471,11 @@ def "main export vault" [
     medusa import $timestamped_path -)
 }
 
+# export a single file into Vault KV (current + timestamped), patching if exists
 def "main export vault-file" [
+  # Base vault path (e.g., "kv/my-app")
   path: string,
+  # Local file path to upload (key will be the filename you pass)
   file: string
 ]: nothing -> nothing {
   let trimmed_path = $path | str trim --char '/'
