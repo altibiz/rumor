@@ -1,5 +1,4 @@
 #:schema ../../src/schema.json
-
 [[imports]]
 importer = "vault"
 arguments.path = "secret/tls"
@@ -11,6 +10,7 @@ arguments.path = "secret/tls"
 
 [[generations]]
 generator = "tls-root"
+
 [generations.arguments]
 common_name = "ca"
 organization = "My PKI"
@@ -22,6 +22,7 @@ renew = true
 
 [[generations]]
 generator = "tls-leaf"
+
 [generations.arguments]
 common_name = "server-cert"
 organization = "My PKI"
@@ -39,6 +40,7 @@ renew = true
 
 [[generations]]
 generator = "tls-leaf"
+
 [generations.arguments]
 common_name = "client-cert"
 organization = "My PKI"
@@ -56,6 +58,7 @@ renew = true
 
 [[generations]]
 generator = "tls-rsa-root"
+
 [generations.arguments]
 common_name = "ca"
 organization = "My PKI"
@@ -67,6 +70,7 @@ renew = true
 
 [[generations]]
 generator = "tls-rsa-leaf"
+
 [generations.arguments]
 common_name = "server-cert"
 organization = "My PKI"
@@ -84,6 +88,7 @@ renew = true
 
 [[generations]]
 generator = "tls-rsa-leaf"
+
 [generations.arguments]
 common_name = "client-cert"
 organization = "My PKI"
@@ -101,16 +106,19 @@ renew = true
 
 [[generations]]
 generator = "age-key"
+
 [generations.arguments]
 public = "age.txt.pub"
 private = "age.txt"
 
 [[generations]]
 generator = "sops"
+
 [generations.arguments]
 age = "age.txt.pub"
 public = "sops.yaml.pub"
 private = "sops.yaml"
+
 [generations.arguments.secrets]
 tls-ca-pub = "tls-ca-pub"
 tls-ca-priv = "tls-ca-priv"

@@ -35,6 +35,8 @@ let tools = [
 
 let tmp_suffix = ".tmp"
 
+let format_suffix = ".format"
+
 let ip_regex = "(^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}$)"
 
 let tls_algorithm_args = [
@@ -64,9 +66,11 @@ def "main" []: nothing -> nothing {
 def "main from-path" [
   # path to specification
   spec: path,
-  # stay in current working directory (does nothing unless --nosandbox specified)
+  # stay in current working directory
+  # (does nothing unless --nosandbox specified)
   --stay,
-  # don't remove the generated secrets (does nothing unless --nosandbox specified)
+  # don't remove the generated secrets
+  # (does nothing unless --nosandbox specified)
   --keep,
   # don't run exports
   --dry-run,
@@ -82,23 +86,37 @@ def "main from-path" [
   --max-specification-size: int = (1024 * 1024),
   # don't use sandbox while running
   --nosandbox,
-  # additional read-only bind mounts to add to bubblewrap - useful for copy imports (does nothing with --nosandbox)
+  # additional read-only bind mounts to add to bubblewrap
+  #  - useful for copy imports (does nothing with --nosandbox)
   --ro-binds: list<string> = [],
-  # additional bind mounts to add to bubblewrap - useful for copy exports (does nothing with --nosandbox)
+  # additional bind mounts to add to bubblewrap
+  #  - useful for copy exports (does nothing with --nosandbox)
   --binds: list<string> = [],
-  # list of tool binaries that rumor is allowed to access via PATH (does nothing with --nosandbox)
+  # list of tool binaries that rumor is allowed to access via PATH
+  # (does nothing with --nosandbox)
   --tools: list<string> = [],
-  # allow network while running (does nothing with --nosandbox)
+  # allow network while running
+  # (does nothing with --nosandbox)
   --allow-net,
-  # maximum allowed runtime in seconds (does nothing with --nosandbox)
+  # maximum allowed runtime in seconds
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --timeout: int = (60 * 60),
-  # maximum allowed memory while running in bytes (does nothing with --nosandbox)
+  # maximum allowed memory while running in bytes
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --max-mem: int = (1024 * 1024 * 128),
-  # maximum allowed tasks while running (does nothing with --nosandbox)
+  # maximum allowed tasks while running
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --max-tasks: int = 64,
-  # maximum allowed generated file size while running in bytes (does nothing with --nosandbox)
+  # maximum allowed generated file size while running in bytes
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --max-file-size: int = (1024 * 1024 * 128),
-  # maximum allowed open files while running (does nothing with --nosandbox)
+  # maximum allowed open files while running
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --max-open-files: int = 1024,
   # select manifest format from 'json', 'yaml' and 'toml'
   --manifest-format: string = "json",
@@ -124,7 +142,8 @@ def "main from-path" [
   let schema_string = open --raw $schema
   let commandline = commandline
   let specification_string = open --raw $spec
-  let specification = $specification_string | rumor format deserialize $specification_format
+  let specification = $specification_string
+    | rumor format deserialize $specification_format
   let parsed_commandline = {
     spec: $spec
     stay: $stay
@@ -164,9 +183,11 @@ def "main from-path" [
 def "main from-stdin" [
   # format of the specification
   format: string,
-  # stay in current working directory (does nothing unless --nosandbox specified)
+  # stay in current working directory
+  # (does nothing unless --nosandbox specified)
   --stay,
-  # don't remove the generated secrets (does nothing unless --nosandbox specified)
+  # don't remove the generated secrets
+  # (does nothing unless --nosandbox specified)
   --keep,
   # don't run exports
   --dry-run,
@@ -182,27 +203,41 @@ def "main from-stdin" [
   --max-specification-size: int = (1024 * 1024),
   # don't use sandbox while running
   --nosandbox,
-  # additional read-only bind mounts to add to bubblewrap - useful for copy imports (does nothing with --nosandbox)
+  # additional read-only bind mounts to add to bubblewrap
+  #  - useful for copy imports (does nothing with --nosandbox)
   --ro-binds: list<string> = [],
-  # additional bind mounts to add to bubblewrap - useful for copy exports (does nothing with --nosandbox)
+  # additional bind mounts to add to bubblewrap
+  #  - useful for copy exports (does nothing with --nosandbox)
   --binds: list<string> = [],
-  # additional list of tool binaries that rumor is allowed to access via PATH (does nothing with --nosandbox)
+  # additional list of tool binaries that rumor is allowed to access via PATH
+  # (does nothing with --nosandbox)
   --tools: list<string> = [],
-  # allow network while running (does nothing with --nosandbox)
+  # allow network while running
+  # (does nothing with --nosandbox)
   --allow-net,
-  # maximum allowed runtime in seconds (does nothing with --nosandbox)
+  # maximum allowed runtime in seconds
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --timeout: int = (1000 * 60 * 60),
-  # maximum allowed memory while running in bytes (does nothing with --nosandbox)
+  # maximum allowed memory while running in bytes
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --max-mem: int = (1024 * 1024 * 128),
-  # maximum allowed tasks while running (does nothing with --nosandbox)
+  # maximum allowed tasks while running
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --max-tasks: int = 64,
-  # maximum allowed generated file size while running in bytes (does nothing with --nosandbox)
+  # maximum allowed generated file size while running in bytes
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --max-file-size: int = (1024 * 1024 * 128),
-  # maximum allowed open files while running (does nothing with --nosandbox)
+  # maximum allowed open files while running
+  # (does nothing with --nosandbox)
+  # planned: currently no-op
   --max-open-files: int = 1024,
   # select manifest format from 'json', 'yaml' and 'toml'
   --manifest-format: string = "json",
-  # turn on logging from tools
+  # turn on logging from modules
   --verbose
   # turn on logging from tools (implies verbose)
   --very-verbose
@@ -224,7 +259,8 @@ def "main from-stdin" [
   let schema_string = open --raw $schema
   let commandline = commandline
   let specification_string = $in
-  let specification = $specification_string | rumor format deserialize $specification_format
+  let specification = $specification_string
+    | rumor format deserialize $specification_format
   let parsed_commandline = {
     format: $format
     stay: $stay
@@ -351,6 +387,12 @@ def "main from-manifest" [
         [ --ro-bind $absolute $absolute ]
       }
     | flatten)
+  $systemd_options ++= ($x.ro_binds
+    | each {
+        let absolute = realpath $in
+        [ -p ReadOnlyPaths=($absolute) ]
+      }
+    | flatten)
   $systemd_options ++= ($x.binds
     | each {
         let absolute = realpath $in
@@ -446,10 +488,10 @@ def "main from-manifest" [
   ]
 
   let result = try {
-    # TODO: cant find bwrap...
-    # prlimit ...($prlimit_options) --
     # TODO: too much privilege nonsense
     # systemd-run --user --wait --pipe --pty ...($systemd_options)
+    # TODO: cant find bwrap...
+    # prlimit ...($prlimit_options) --
     (bwrap ...($bwrap_options) --
       nu ...($nu_options))
   } | complete
@@ -460,7 +502,9 @@ def "main from-manifest" [
     let message = ($"sandbox failed and"
       + $" exited with '($result.exit_code)'")
     $result.stderr | rumor log --error "sandbox failed"
-    error make { msg: $"sandbox failed with exit code ($result.exit_code)" }
+    error make {
+      msg: $"sandbox failed with exit code ($result.exit_code)"
+    }
   }
 }
 
@@ -595,10 +639,14 @@ def "main generate data" [
     exit 1
   }
 
-  let deserialized =  rumor format read $data $in_format
-  let serialized = $deserialized | rumor format serialize $out_format
-  $serialized | rumor save $name $renew
-  $out_format | rumor save $"($name)-format" $renew
+  if ($renew) {
+     rumor format read $data $in_format
+      | rumor format write $name $out_format --renew
+  } else {
+     rumor format read $data $in_format
+      | rumor format write $name $out_format
+  }
+  $out_format | rumor save $"($name)($format_suffix)" $renew
 }
 
 def "main generate pin" [
@@ -650,7 +698,9 @@ def "main generate password-crypt-3" [
   --length: int = 8,
   --renew
 ]: nothing -> nothing {
-  let pass = rumor secure random alnum "generate password-crypt-3" $length
+  let pass = (rumor secure random alnum
+    "generate password-crypt-3"
+    $length)
   let encrypted = $pass
     | (rumor exec tool "generate password-crypt-3"
         mkpasswd --stdin --method=yescrypt)
@@ -683,7 +733,7 @@ def "main generate ssh-key" [
 ]: nothing -> nothing {
   mut password = $password
 
-  let password_args =  if ($password | str trim | is-not-empty) {
+  let password_args = if ($password | str trim | is-not-empty) {
     [ -N (open --raw $password) ]
   } else {
     [ -N "''" ]
@@ -1046,8 +1096,10 @@ def "main generate cockroach-client-cert" [
     $user
     $"--certs-dir=cockroach($tmp_suffix)"
     $"--ca-key=cockroach($tmp_suffix)/ca.key")
-  let public_content = open --raw $"cockroach($tmp_suffix)/client.($user).crt"
-  let private_content = open --raw $"cockroach($tmp_suffix)/client.($user).key"
+  let public_content = (open
+    --raw $"cockroach($tmp_suffix)/client.($user).crt")
+  let private_content = (open
+    --raw $"cockroach($tmp_suffix)/client.($user).key")
   rm -rf $"cockroach($tmp_suffix)"
 
   $public_content | rumor save $public $renew
@@ -1094,7 +1146,9 @@ def "main generate moustache" [
   variables_and_template: path,
   --renew
 ]: string -> nothing {
-  let variables_and_template = rumor format read $variables_and_template $format
+  let variables_and_template = (rumor format read
+    $variables_and_template
+    $format)
 
   let vars = $variables_and_template.variables
     | transpose key value
@@ -1114,8 +1168,14 @@ def "main generate moustache" [
       }
     | str trim
 
-  $vars | str trim | rumor save $"($name)-variables" $renew
-  $variables_and_template.template | str trim | rumor save $"($name)-template" $renew
+  $vars
+    | str trim
+    | rumor save $"($name)-variables" $renew
+
+  $variables_and_template.template
+    | str trim
+    | rumor save $"($name)-template" $renew
+
   (rumor exec tool "generate moustache"
     mo $"--source=($name)-variables" $"($name)-template")
     | rumor save $name $renew
@@ -1256,7 +1316,8 @@ def "rumor validate" [
 ]: nothing -> nothing {
   let x = $parsed_commandline
 
-  if ($specification_string | into binary | length) > $x.max_specification_size {
+  if (($specification_string | into binary | length)
+    > $x.max_specification_size) {
     rumor log --error "Maximum specification size exceeded."
     exit 1
   }
@@ -1282,7 +1343,8 @@ def "rumor validate" [
       | json-schema-validate $schema
   } | complete
   if ($validation_result.exit_code != 0) {
-    $validation_result.stderr | rumor log --error $"Specification schema invalid"
+    $validation_result.stderr
+      | rumor log --error $"Specification schema invalid"
     exit 1
   }
 
@@ -1306,23 +1368,37 @@ def "rumor validate" [
     $with_output
     $x.manifest_format)
 
-  let manifest_path = (rumor mktemp --suffix $".($x.manifest_format)" manifest)
-  $manifest | rumor format write $manifest_path $x.manifest_format --renew --public
+  let manifest_path = (rumor mktemp
+    --suffix $".($x.manifest_format)" manifest)
+  $manifest | (rumor format write
+    $manifest_path
+    $x.manifest_format
+    --renew
+    --public)
   # TODO: cleanup without clobbering error
   main from-manifest $manifest_path
   rm -f $manifest_path
+  rm -f $"($manifest_path)($format_suffix)"
 }
 
-def "rumor run" [input_manifest_path: string]: nothing -> nothing {
-  let input_manifest_format = rumor format detect $input_manifest_path
-  let input_manifest = rumor format read $input_manifest_path
+def "rumor run" [
+  input_manifest_path: string
+]: nothing -> nothing {
+  let input_manifest_format = (rumor format detect
+    $input_manifest_path)
+  let input_manifest = (rumor format read
+    $input_manifest_path)
   let script = $input_manifest.input.script_text
   let schema_string = $input_manifest.input.schema_text
   let commandline = $input_manifest.input.commandline
-  let parsed_commandline = $input_manifest.input.parsed_commandline | from json
-  let specification_format = $input_manifest.input.specification_format
-  let specification_string = $input_manifest.input.specification_text
-  let specification = $specification_string | rumor format deserialize $specification_format
+  let parsed_commandline = (
+    $input_manifest.input.parsed_commandline | from json)
+  let specification_format = (
+    $input_manifest.input.specification_format)
+  let specification_string = (
+    $input_manifest.input.specification_text)
+  let specification = $specification_string
+    | rumor format deserialize $specification_format
   let manifest_format = $input_manifest.format
   let dry_run = $parsed_commandline.dry_run
   let verbose = $parsed_commandline.verbose
@@ -1440,21 +1516,24 @@ def "rumor run import" [import: any]: nothing -> nothing {
 
   if ($import.importer == "vault") {
     $args ++= [ ($import.arguments.path) ]
-    if (($import.arguments | get --ignore-errors allow_fail) != null
+    if (($import.arguments
+      | get --ignore-errors allow_fail) != null
       and $import.arguments.allow_fail) {
       $args ++= [ --allow-fail ]
     }
   } else if ($import.importer == "vault-file") {
     $args ++= [ ($import.arguments.path) ]
     $args ++= [ ($import.arguments.file) ]
-    if (($import.arguments | get --ignore-errors allow_fail) != null
+    if (($import.arguments
+      | get --ignore-errors allow_fail) != null
       and $import.arguments.allow_fail) {
       $args ++= [ --allow-fail ]
     }
   } else if ($import.importer == "copy") {
     $args ++= [ ($import.arguments.from) ]
     $args ++= [ ($import.arguments.to) ]
-    if (($import.arguments | get --ignore-errors allow_fail) != null
+    if (($import.arguments
+      | get --ignore-errors allow_fail) != null
       and $import.arguments.allow_fail) {
       $args ++= [ --allow-fail ]
     }
@@ -1463,7 +1542,10 @@ def "rumor run import" [import: any]: nothing -> nothing {
   rumor exec module $"import ($import.importer)" ...($args)
 }
 
-def "rumor run generation" [generation: any, allow_script: bool]: nothing -> nothing {
+def "rumor run generation" [
+  generation: any,
+  allow_script: bool
+]: nothing -> nothing {
   mut args = [ ]
   mut generator = $generation.generator
 
@@ -1491,9 +1573,11 @@ def "rumor run generation" [generation: any, allow_script: bool]: nothing -> not
     if (($generation.arguments | get --ignore-errors renew) != null
       and $generation.arguments.renew) {
       $args ++= [ --renew ]
-      $generation.arguments.value | to json | rumor save $json true --public
+      $generation.arguments.value
+        | rumor format write $json json --renew --public
     } else {
-      $generation.arguments.value | to json | rumor save $json false --public
+      $generation.arguments.value
+        | rumor format write $json json --public
     }
   } else if $generation.generator == "yaml" {
     $generator = "data"
@@ -1505,9 +1589,11 @@ def "rumor run generation" [generation: any, allow_script: bool]: nothing -> not
     if (($generation.arguments | get --ignore-errors renew) != null
       and $generation.arguments.renew) {
       $args ++= [ --renew ]
-      $generation.arguments.value | to yaml | rumor save $yaml true --public
+      $generation.arguments.value
+        | rumor format write $yaml yaml --renew --public
     } else {
-      $generation.arguments.value | to yaml | rumor save $yaml false --public
+      $generation.arguments.value
+        | rumor format write $yaml yaml --public
     }
   } else if $generation.generator == "toml" {
     $generator = "data"
@@ -1519,9 +1605,11 @@ def "rumor run generation" [generation: any, allow_script: bool]: nothing -> not
     if (($generation.arguments | get --ignore-errors renew) != null
       and $generation.arguments.renew) {
       $args ++= [ --renew ]
-      $generation.arguments.value | to toml | rumor save $toml true --public
+      $generation.arguments.value
+        | rumor format write $toml toml --renew --public
     } else {
-      $generation.arguments.value | to toml | rumor save $toml false --public
+      $generation.arguments.value
+        | rumor format write $toml toml --public
     }
   } else if $generation.generator == "id" {
     $args ++= [ ($generation.arguments.name) ]
@@ -1777,14 +1865,17 @@ def "rumor run generation" [generation: any, allow_script: bool]: nothing -> not
     if (($generation.arguments | get --ignore-errors renew) != null
       and $generation.arguments.renew) {
       $args ++= [ --renew ]
-      $generation.arguments.variables | to json | rumor save $variables true --public
+      $generation.arguments.variables
+        | rumor format write $variables json --renew --public
     } else {
-      $generation.arguments.variables | to json | rumor save $variables false --public
+      $generation.arguments.variables
+        | rumor format write $variables json --public
     }
   } else if $generation.generator == "moustache" {
     $args ++= [ ($generation.arguments.name) ]
     $args ++= [ json ]
-    let variables_and_template = $"($generation.arguments.name)-variables-and-template"
+    let variables_and_template = (
+      $"($generation.arguments.name)-variables-and-template")
     $args ++= [ ($variables_and_template) ]
     if (($generation.arguments | get --ignore-errors renew) != null
       and $generation.arguments.renew) {
@@ -1801,7 +1892,9 @@ def "rumor run generation" [generation: any, allow_script: bool]: nothing -> not
     }
   } else if $generation.generator == "script" {
     if not $allow_script {
-      rumor log --error "Running script generator not allowed. Please run with `--allow-script`"
+      (rumor log --error
+        ("Running script generator not allowed."
+          + " Please run with `--allow-script`"))
       exit 1
     }
     $args ++= [ ($generation.arguments.name) ]
@@ -1820,9 +1913,11 @@ def "rumor run generation" [generation: any, allow_script: bool]: nothing -> not
     if (($generation.arguments | get --ignore-errors renew) != null
       and $generation.arguments.renew) {
       $args ++= [ --renew ]
-      $generation.arguments.secrets | to json | rumor save $secrets true --public
+      $generation.arguments.secrets
+        | rumor format write $secrets json --renew --public
     } else {
-      $generation.arguments.secrets | to json | rumor save $secrets false --public
+      $generation.arguments.secrets
+        | rumor format write $secrets json --public
     }
   }
 
@@ -1869,7 +1964,8 @@ def "rumor create manifest" [
     parsed_commandline: ($parsed_commandline | to json)
     commandline_hash: ($commandline | hash sha256)
   }
-  let input = $input | insert hash ($input | rumor record hash)
+  let input = $input
+    | insert hash ($input | rumor record hash)
 
   mut manifest: any = null
   if $with_output {
@@ -1890,7 +1986,8 @@ def "rumor create manifest" [
              }
           })
     }
-    let output = $output | insert hash ($output | rumor record hash)
+    let output = $output
+      | insert hash ($output | rumor record hash)
 
     $manifest = {
       version: $version
@@ -2166,7 +2263,10 @@ def "rumor tls leaf" [
   $serial_content | rumor save $serial $renew
 }
 
-def "rumor secure random alnum" [module: string, length: int]: nothing -> string {
+def "rumor secure random alnum" [
+  module: string,
+  length: int
+]: nothing -> string {
   mut out = ""
   while ($out | str length) < $length {
     let need = $length - ($out | str length)
@@ -2182,7 +2282,10 @@ def "rumor secure random alnum" [module: string, length: int]: nothing -> string
   $out
 }
 
-def "rumor secure random digits" [module: string, length: int]: nothing -> string {
+def "rumor secure random digits" [
+  module: string,
+  length: int
+]: nothing -> string {
   mut out = ""
   while ($out | str length) < $length {
     let need = $length - ($out | str length)
@@ -2207,7 +2310,11 @@ def "rumor purge workdir" []: nothing -> nothing {
   return
 }
 
-def "rumor mktemp" [path: string, --directory, --suffix = ""]: nothing -> path {
+def "rumor mktemp" [
+  path: string,
+  --directory,
+  --suffix = ""
+]: nothing -> path {
   if $directory {
     let result = mktemp -t --suffix $suffix -d $"rumor-($path)-XXXX"
     chmod 700 $result
@@ -2219,7 +2326,11 @@ def "rumor mktemp" [path: string, --directory, --suffix = ""]: nothing -> path {
   }
 }
 
-def "rumor save" [path: path, renew: bool, --public]: string -> nothing {
+def "rumor save" [
+  path: path,
+  renew: bool,
+  --public
+]: string -> nothing {
   $in | save -f $"($path)($tmp_suffix)"
   if $renew {
     mv -f $"($path)($tmp_suffix)" $path
@@ -2387,7 +2498,12 @@ def "rumor format read" [path: path, format?: string]: nothing -> any {
   open --raw $path | rumor format deserialize $format
 }
 
-def "rumor format write" [path: path, format: string, --renew, --public]: any -> nothing {
+def "rumor format write" [
+  path: path,
+  format: string,
+  --renew,
+  --public
+]: any -> nothing {
   if not (rumor format valid $format) {
     return
   }
@@ -2395,16 +2511,16 @@ def "rumor format write" [path: path, format: string, --renew, --public]: any ->
   let serialized = $in | rumor format serialize $format
   if $public {
     $serialized | rumor save $path $renew --public
-    $format | rumor save $"($path)-format" $renew --public
+    $format | rumor save $"($path)($format_suffix)" $renew --public
   } else {
     $serialized | rumor save $path $renew
-    $format | rumor save $"($path)-format" $renew
+    $format | rumor save $"($path)($format_suffix)" $renew
   }
 }
 
 def "rumor format detect" [path: path]: nothing -> string {
-  let format = if ($"($path)-format" | path exists) {
-    open --raw $"($path)-format"
+  let format = if ($"($path)($format_suffix)" | path exists) {
+    open --raw $"($path)($format_suffix)"
   } else {
     $path | path parse | get extension
   }

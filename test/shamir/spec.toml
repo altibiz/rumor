@@ -1,12 +1,12 @@
 #:schema ../../src/schema.json
 [[imports]]
 importer = "vault"
-arguments.path = "secret/id"
+arguments.path = "secret/shamir"
 arguments.allow_fail = true
 
 [[exports]]
 exporter = "vault"
-arguments.path = "secret/id"
+arguments.path = "secret/shamir"
 
 [[generations]]
 generator = "id"

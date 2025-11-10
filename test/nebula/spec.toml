@@ -1,12 +1,12 @@
 #:schema ../../src/schema.json
 [[imports]]
 importer = "vault"
-arguments.path = "secret/ssl"
+arguments.path = "secret/nebula"
 arguments.allow_fail = true
 
 [[exports]]
 exporter = "vault"
-arguments.path = "secret/ssl"
+arguments.path = "secret/nebula"
 
 [[generations]]
 generator = "nebula-ca"

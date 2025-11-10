@@ -133,6 +133,28 @@ def "test vault" [root: string, test: string]: nothing -> nothing {
   print $"Rumor success!"
   print $"Stdout:\n($result.stdout | decode if bytes)"
   print $"Stderr:\n($result.stderr | decode if bytes)"
+
+  let export = medusa export $"secret/($test)"
+    | from yaml
+    | get $test
+    | get current
+
+  let snapshot_file = $"($root)/test/($test)/sops.yaml"
+  if not ($snapshot_file | path exists) {
+    print $"Snapshot file for test '($test)' not found"
+    exit 1
+  }
+
+  let snapshot = open $snapshot_file
+  let delta = snap $export $snapshot
+
+  if ($delta != null) {
+    print $"Export doesn't match snapshot file in test '($test)'"
+    print $"Delta key: '($delta)'"
+    print $"Snapshot:\n($snapshot | get $delta | to yaml)"
+    print $"Export:\n($export | get $delta | to yaml)"
+    exit 1
+  }
 }
 
 def "test fs" [root: string, test: string]: nothing -> nothing {
@@ -195,9 +217,9 @@ def "test fs" [root: string, test: string]: nothing -> nothing {
 
   if ($delta != null) {
     print $"Decrypted doesn't match snapshot file in test '($test)'"
-    print $"Snapshot:\n($snapshot | to yaml)"
-    print $"Decrypted:\n($decrypted | to yaml)"
     print $"Delta key: '($delta)'"
+    print $"Snapshot:\n($snapshot | $delta | to yaml)"
+    print $"Decrypted:\n($decrypted | $delta | to yaml)"
     exit 1
   }
 }
