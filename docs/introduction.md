@@ -25,7 +25,41 @@ You can invoke Rumor in two ways:
    standard input. In this mode you have to tell Rumor the format of the
    specification.
 
-In both modes, rumor has two optional arguments:
+Rumor will always take these arguments into account:
+
+- `--dry-run`- don't run exports
+- `--allow-script`- allow script generator
+- `--max-imports: int = 1024`- maximum allowed imports
+- `--max-generations: int = 1024`- maximum allowed generations
+- `--max-exports: int = 1024`- maximum allowed exports
+- `--max-specification-size: int = (1024 * 1024)`- maximum allowed specification
+  size in bytes
+- `--manifest-format: string = "json"` - select manifest format from 'json',
+  'yaml' and 'toml'
+- `--verbose` - turn on logging from modules
+- `--very-verbose` - turn on logging from tools (implies verbose)
+
+### Sandbox
+
+By default, rumor runs in a [bublewrap] sandbox. The `--nosandbox` argument can
+be provided to disable the sandbox. When rumor is running in a sandbox the
+following arguments will be taken into account:
+
+- `--ro-binds: list<string> = []`- additional read-only bind mounts to add to
+  bubblewrap
+- `--binds: list<string> = []`- additional bind mounts to add to bubblewrap
+- `--tools: list<string> = []`- additional list of tool binaries that rumor is
+  allowed to access via PATH
+- `--allow-net`- allow network while running
+- `--timeout: int = (1000 * 60 * 60)`- maximum allowed runtime in seconds
+- `--max-mem: int = (1024 * 1024 * 128)`- maximum allowed memory while running
+  in bytes
+- `--max-tasks: int = 64`- maximum allowed tasks while running
+- `--max-file-size: int = (1024 * 1024 * 128)`- maximum allowed generated file
+  size while running in bytes
+- `--max-open-files: int = 1024`- maximum allowed open files while running
+
+When not in a sandbox, rumor will take these arguments into account:
 
 - `--stay`: By default, Rumor will create a temporary directory and change its
   directory to it. You can instruct Rumor to stay in the directory in which it
@@ -38,9 +72,9 @@ In both modes, rumor has two optional arguments:
 Rumor also allows you to invoke all of the importers, generators and exporters
 on their own which will be described in the following chapters. Please note,
 however, that while rumor does some have safety precautions when using it in the
-main two ways as described here, invoking the importers, generators and
-exporters by themselves is done with minimal safety precautions which is limited
-to setting file permissions on generated files.
+main ways as described here, invoking the importers, generators and exporters by
+themselves is done with minimal safety precautions which is limited to setting
+file permissions on generated files.
 
 ## Specification
 
@@ -100,3 +134,4 @@ Rumor validates every specification against the [schema.json] file.
 
 [schema.json]: https://github.com/altibiz/rumor/blob/main/src/schema.json
 [Rumor flake]: https://github.com/altibiz/rumor
+[bubblewrap]: https://github.com/containers/bubblewrap
